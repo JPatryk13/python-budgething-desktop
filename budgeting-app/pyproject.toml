@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "budgeting-app"
+version = "0.1.0"
+description = ""
+authors = ["jpatryk13 <jesionka.patryk13@gmail.com>"]
+readme = "README.md"
+packages = [{include = "budgeting_app"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
