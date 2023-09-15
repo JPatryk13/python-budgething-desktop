@@ -3,11 +3,17 @@ name = "budgeting-app"
 version = "0.1.0"
 description = ""
 authors = ["jpatryk13 <jesionka.patryk13@gmail.com>"]
-readme = "README.md"
+readme = "../README.md"
+license = "MIT"
 packages = [{include = "budgeting_app"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+pypdf2 = "^3.0.1"
+mypy = "^1.4.1"
+pdfplumber = "^0.10.1"
+parameterized = "^0.9.0"
+pyqt6 = "^6.5.2"
 
 
 [build-system]
