@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import math
 from typing import Literal, TypedDict
@@ -13,32 +13,37 @@ from budgeting_app.utils.tools import (
 
 DEFAULT_PEN = QtGui.QPen(QtGui.QColor(QtCore.Qt.GlobalColor.red))
 DEFAULT_HANDLES_PEN = QtGui.QPen(QtGui.QColor(QtCore.Qt.GlobalColor.cyan))
+DEFAULT_ZOOM_FACTOR = 1.1
+
 SELECTION_HANDLE_RADIUS = 5
 MIN_COLUMN_WIDTH = 4 * SELECTION_HANDLE_RADIUS
 MIN_ROW_HEIGHT = 4 * SELECTION_HANDLE_RADIUS
+MIN_COLUMN_COUNT = 2
+MIN_ROW_COUNT = 3
+MIN_TABLE_WIDTH = MIN_COLUMN_COUNT * MIN_COLUMN_WIDTH
+MIN_TABLE_HEIGHT = MIN_ROW_COUNT * MIN_ROW_HEIGHT
 
 class Tools(Enum):
     TABLE_DRAWING_TOOL = 0
     HAND_TOOL = 1
 
 DEFAULT_TOOL = Tools.HAND_TOOL
-
+    
 class AddMode(Enum):
     INSERT_AT_END = 0
     APPEND = 1
-
+    
 DEFAULT_ADD_COLUMN_MODE = AddMode.INSERT_AT_END
 DEFAULT_ADD_ROW_MODE = AddMode.APPEND
-DEFAULT_ZOOM_FACTOR = 1.1
 
-class TableObjData(TypedDict):
+class PythonicTableData(TypedDict):
     top_left: tuple[float, float]
     bottom_right: tuple[float, float]
     vlines: list[float]
     hlines: list[float]
 
 @dataclass
-class TableObjF:
+class QTableF:
     """
         - boundary: `QtCore.QRectF` - rectangle surrounding the table
         - vertical_separators: `list[QtCore.QLineF]` - lines separating columns
@@ -48,8 +53,8 @@ class TableObjF:
     vertical_separators: list[QtCore.QLineF]
     horizontal_separators: list[QtCore.QLineF]
     
-    def get_data(self) -> TableObjData:
-        return TableObjData(
+    def get_data(self) -> PythonicTableData:
+        return PythonicTableData(
             top_left=(self.boundary.topLeft().x(), self.boundary.topLeft().y()),
             bottom_right=(self.boundary.bottomRight().x(), self.boundary.bottomRight().y()),
             vlines=[vl.x1() for vl in self.vertical_separators],
@@ -57,26 +62,43 @@ class TableObjF:
         )
     
 @dataclass
+class DrawingSettings:
+    col_count: int = field(default=MIN_COLUMN_COUNT)
+    row_count: int = field(default=MIN_ROW_COUNT)
+    col_add_mode: AddMode = field(default=DEFAULT_ADD_COLUMN_MODE)
+    row_add_mode: AddMode = field(default=DEFAULT_ADD_ROW_MODE)
+
+@dataclass
 class SelectedElement:
     """
-        - key: `str` - string representing property of the `TableObjF` object
+        - key: `str` - string representing property of the `QTableF` object
         - index_or_loaction: `str | int` - if the `'boundary'` is selected as `key`, it is required
         to specify which corner of the boundary is selected, otherwise (if either vertical or
         horizontal line is selected) the index of the line must be given
     """
     key: Literal['boundary', 'vertical_separators', 'horizontal_separators']
     index_or_loaction: Literal['topLeft', 'topRight', 'bottomLeft', 'bottomRight'] | int
-    
-@dataclass
+
+@dataclass 
 class SelectedTable:
     """
-        - table_index: `int` - index of the selected table
-        - table_obj: `TableObjF` - table at the given index
+        - index: `int` - index of the selected table
+        - table: `QTableF` - table at the given index
+    """
+    index: int
+    table: QTableF
+    
+@dataclass
+class TableInfo:
+    """
+        - table_drawing_settings: `DrawingSettings` - describes how to add new columns to the table and how
+        many columns already is (or could be) in a table
+        - selected_table: `SelectedTable | None` - selected table index and object (if any)
         - selected_element: `SelectedElement | None` - element of the table that has been selected (if any)
     """
-    table_index: int
-    table_obj: TableObjF
-    selected_element: SelectedElement | None
+    table_drawing_settings: DrawingSettings
+    selected_table: SelectedTable | None = field(default=None)
+    selected_element: SelectedElement | None = field(default=None)
 
 @dataclass 
 class ImageData:
@@ -95,13 +117,13 @@ class ImageData:
 class TableDrawingTool:
 
     @ classmethod
-    def _min_table_width(cls, table: TableObjF) -> float:
+    def _min_table_width(cls, table: QTableF) -> float:
         """Get minimum allowed width of the table
         """
         return (len(table.vertical_separators) + 1) * MIN_COLUMN_WIDTH
     
     @classmethod
-    def _min_table_height(cls, table: TableObjF) -> float:
+    def _min_table_height(cls, table: QTableF) -> float:
         """Get minimum allowed height of the table
         """
         return (len(table.horizontal_separators) + 1) * MIN_ROW_HEIGHT
@@ -204,7 +226,7 @@ class TableDrawingTool:
         return cls._get_lines(boundary, row_count, 'y', distribution)
     
     @classmethod
-    def _get_lines_distribution(cls, table: TableObjF, axis: Literal['x', 'y']) -> list[float]:
+    def _get_lines_distribution(cls, table: QTableF, axis: Literal['x', 'y']) -> list[float]:
         """Calculate distribution of the distance of each vertical/horizontal line from the side
         of the boundary closest to the parallel axis and represent it as a fraction of the length
         of the perpendicular side of the boundary.
@@ -222,7 +244,7 @@ class TableDrawingTool:
                 distr_y = [0.(3), 0.8(3)]
 
         Args:
-            table (TableObjF): table the lines will be pulled from
+            table (QTableF): table the lines will be pulled from
             axis (Literal[&#39;x&#39;, &#39;y&#39;]): axis that shall be considered - 'x' for distr_x
             and 'y' for distr_y
 
@@ -255,12 +277,12 @@ class TableDrawingTool:
         return distr
     
     @classmethod
-    def _get_vlines_distribution(cls, table: TableObjF) -> list[float]:
+    def _get_vlines_distribution(cls, table: QTableF) -> list[float]:
         """Calculate distribution of the distances of each vertical line from the left side of
         the boundary and represent it as a fraction of the table width.
 
         Args:
-            table (TableObjF): table the lines will be pulled from
+            table (QTableF): table the lines will be pulled from
 
         Returns:
             list[float]: list of numbers where each one represents vertical separator line
@@ -270,12 +292,12 @@ class TableDrawingTool:
         return cls._get_lines_distribution(table, 'x')
     
     @classmethod
-    def _get_hlines_distribution(cls, table: TableObjF) -> list[float]:
+    def _get_hlines_distribution(cls, table: QTableF) -> list[float]:
         """Calculate distribution of the distance of each horizontal line from the top side
         of the boundary and represent it as a fraction of the table height.
 
         Args:
-            table (TableObjF): table the lines will be pulled from
+            table (QTableF): table the lines will be pulled from
 
         Returns:
             list[float]: list of numbers where each one represents horizontal separator
@@ -287,7 +309,7 @@ class TableDrawingTool:
     @classmethod
     def _get_line_translation_boundaries(
         cls,
-        table: TableObjF,
+        table: QTableF,
         line_index: int,
         axis: Literal['x', 'y'],
         *,
@@ -301,7 +323,7 @@ class TableDrawingTool:
         for any given line within the table.
 
         Args:
-            table (TableObjF): Table the line belongs to
+            table (QTableF): Table the line belongs to
             line_index (int): Index of the line that we want min/max to be calculated for
             axis (Literal[&#39;x&#39;, &#39;y&#39;]): Axis along which the line is able to move
             min_col_width (float, optional): Minimum width of a column. Defaults to MIN_COLUMN_WIDTH.
@@ -340,12 +362,12 @@ class TableDrawingTool:
         return min(pos1, pos2) + min_size, max(pos1, pos2) - min_size
     
     @classmethod
-    def _get_vline_translation_boundaries(cls, table: TableObjF, line_index: int, min_col_width: float = MIN_COLUMN_WIDTH) -> tuple[float, float]:
+    def _get_vline_translation_boundaries(cls, table: QTableF, line_index: int, min_col_width: float = MIN_COLUMN_WIDTH) -> tuple[float, float]:
         """Find allowed min and max value (along the x-axis - vertical separator can only move along
         x-axis) for any given vertical separator within the table.
 
         Args:
-            table (TableObjF): Table the line belongs to
+            table (QTableF): Table the line belongs to
             line_index (int): Index of the line that we want min/max to be calculated for
             min_col_width (float, optional): Minimum width of a column. Defaults to MIN_COLUMN_WIDTH.
 
@@ -355,12 +377,12 @@ class TableDrawingTool:
         return cls._get_line_translation_boundaries(table, line_index, 'x', min_col_width=min_col_width)
 
     @classmethod
-    def _get_hline_translation_boundaries(cls, table: TableObjF, line_index: int, min_row_height: float = MIN_ROW_HEIGHT) -> tuple[float, float]:
+    def _get_hline_translation_boundaries(cls, table: QTableF, line_index: int, min_row_height: float = MIN_ROW_HEIGHT) -> tuple[float, float]:
         """Find allowed min and max value (along the y-axis - horizontal separator can only move along
         y-axis) for any given horizontal separator within the table.
 
         Args:
-            table (TableObjF): Table the line belongs to
+            table (QTableF): Table the line belongs to
             line_index (int): Index of the line that we want min/max to be calculated for
             min_row_height (float, optional): Minimum height of a row. Defaults to MIN_ROW_HEIGHT.
 
@@ -378,7 +400,7 @@ class TableDrawingTool:
         end_qpoint: QtCore.QPointF | None = None,
         col_count: int | None = None,
         row_count: int | None = None,
-        table: TableObjF | None = None
+        table: QTableF | None = None
     ) -> None:
         """Draw a table using givent painter object. If `start_qpoint`, `end_qpoint`, `col_count` and
         `row_count` are given draw a table whose boudary top-left and bottom-right corners are placed at
@@ -396,7 +418,7 @@ class TableDrawingTool:
             Defaults to None.
             col_count (int | None, optional): number of columns. Defaults to None.
             row_count (int | None, optional): number of rows. Defaults to None.
-            table (TableObjF | None, optional): if the `start_qpoint`, `end_qpoint`, `col_count` and
+            table (QTableF | None, optional): if the `start_qpoint`, `end_qpoint`, `col_count` and
             `row_count` are None then this value is used. Defaults to None.
 
         Raises:
@@ -421,7 +443,7 @@ class TableDrawingTool:
             raise ValueError
 
     @classmethod    
-    def draw_all(cls, painter: QtGui.QPainter, tables: list[TableObjF]) -> None:
+    def draw_all(cls, painter: QtGui.QPainter, tables: list[QTableF]) -> None:
         """Draw all tables given in the list.
         """
         painter.setPen(DEFAULT_PEN)
@@ -433,20 +455,20 @@ class TableDrawingTool:
             ])
 
     @classmethod
-    def get_table(cls, start_qpoint: QtCore.QPointF, end_qpoint: QtCore.QPointF, col_count: int, row_count: int) -> TableObjF:
-        """Create a TableObjF object from given `start_qpoint` and `end_qpoint` and with giben
+    def get_table(cls, start_qpoint: QtCore.QPointF, end_qpoint: QtCore.QPointF, col_count: int, row_count: int) -> QTableF:
+        """Create a QTableF object from given `start_qpoint` and `end_qpoint` and with giben
         number of columns and rows. Vertical and horizontal separators are evenly spaced.
         """
         boundary = QtCore.QRectF(start_qpoint, end_qpoint)
 
-        return TableObjF(
+        return QTableF(
             boundary=boundary,
             vertical_separators=cls._get_vlines(boundary, col_count),
             horizontal_separators=cls._get_hlines(boundary, row_count)
         )
 
     @classmethod    
-    def draw_selection_handles(cls, painter: QtGui.QPainter, table: TableObjF) -> None:
+    def draw_selection_handles(cls, painter: QtGui.QPainter, table: QTableF) -> None:
         """Selection handle are those little circles displayed around each 'grabable' point on the table.
         Each corner of the boundary can be grabbed and moved, therefore, they will have their handles.
         Each vertical and horizontal line has its handle around the top or left-hand-side point
@@ -454,7 +476,7 @@ class TableDrawingTool:
 
         Args:
             painter (QtGui.QPainter): painter object to be used
-            table (TableObjF): table for which the handles will be drawn
+            table (QTableF): table for which the handles will be drawn
         """
         painter.setPen(DEFAULT_HANDLES_PEN)
 
@@ -481,17 +503,17 @@ class TableDrawingTool:
             )
             
     @classmethod
-    def move_tables(cls, tables: list[TableObjF], dx: float, dy: float) -> list[TableObjF]:
+    def move_tables(cls, tables: list[QTableF], dx: float, dy: float) -> list[QTableF]:
         """Move tables in the given list by dx distance in the x-direction and dy distance
         in the y-direction
 
         Args:
-            tables (list[TableObjF]): List of tables to be affected
+            tables (list[QTableF]): List of tables to be affected
             dx (float): Distance in the x-direction
             dy (float): Distance in the y-direction
 
         Returns:
-            list[TableObjF]: List of updated tables
+            list[QTableF]: List of updated tables
         """
         for i, table in enumerate(tables):
             tables[i].boundary = QtCore.QRectF(
@@ -509,23 +531,23 @@ class TableDrawingTool:
     def get_table_element_by_handle(
         cls,
         pos: QtCore.QPointF,
-        selected_table: SelectedTable
-    ) -> SelectedTable:
+        table_info: TableInfo
+    ) -> TableInfo:
         """Checks which element's handle the position of the coursor, `pos`, is closest to and
         within the selection handle. If any is found to match the criteria updates
-        selected_table.selected_element approprietely and returns it.
+        table_info.selected_element approprietely and returns it.
 
         Args:
             pos (QtCore.QPointF): coursor position
-            selected_table (SelectedTable): table that has been selected. Only such can be
+            table_info (TableInfo): table that has been selected. Only such can be
             modified by dragging its components
 
         Returns:
-            SelectedTable: Updated SelectedTable. If selected_element is None no element has
+            TableInfo: Updated TableInfo. If selected_element is None no element has
             been selected.
         """
-        selected_table_with_element: SelectedTable = selected_table
-        table = selected_table.table_obj
+        selected_table_with_element: TableInfo = table_info
+        table = table_info.selected_table.table
         min_distance: float = math.inf
 
         # Check boundary
@@ -577,20 +599,20 @@ class TableDrawingTool:
                 )
                 min_distance = dist
 
-        return selected_table
+        return table_info
 
     @classmethod    
     def get_table_by_line(
         cls,
         pos: QtCore.QPointF,
-        tables: list[TableObjF]
+        tables: list[QTableF]
     ) -> int | None:
         """Find table (in the list) that the coursor is closest to (and closer that the
         SELECTION_HANDLE_RADIUS) one or more of its elements.
 
         Args:
             pos (QtCore.QPointF): position of the coursor
-            tables (list[TableObjF]): list of tables to check
+            tables (list[QTableF]): list of tables to check
 
         Returns:
             int | None: Index of the table
@@ -654,9 +676,9 @@ class TableDrawingTool:
     def update_table_size(
         cls,
         pos: QtCore.QPointF,
-        table: TableObjF,
+        table: QTableF,
         handle_literal: Literal['topLeft', 'topRight', 'bottomLeft', 'bottomRight']
-    ) -> TableObjF:
+    ) -> QTableF:
         """Update table size by moving one of its corners. Allows to select one handle (on one of the corners of
         the table's boundary) and move it to the point `pos`. Automatically, the opposite corner (along the
         diagonal e.g. topLeft is 'opposite' to bottomRight) remain in its original place while the other to adjust
@@ -665,12 +687,12 @@ class TableDrawingTool:
 
         Args:
             pos (QtCore.QPointF): postion of the coursor
-            table (TableObjF): table to be resized
+            table (QTableF): table to be resized
             handle_literal (Literal[&#39;topLeft&#39;, &#39;topRight&#39;, &#39;bottomLeft&#39;,
             &#39;bottomRight&#39;]): handle that is being grabbed and dragged
 
         Returns:
-            TableObjF: Updated table
+            QTableF: Updated table
         """
         # distance between handle and the coursor
         dx: float = pos.x() - getattr(table.boundary, handle_literal)().x()
@@ -709,37 +731,35 @@ class TableDrawingTool:
             distribution=cls._get_hlines_distribution(table)
         )
 
-        return TableObjF(
+        return QTableF(
             boundary=boundary,
             vertical_separators=vlines,
             horizontal_separators=hlines
         )
         
     @classmethod
-    def update_tables_scale(cls, tables: list[TableObjF], image_data: ImageData, previous_ratio: float) -> tuple[list[TableObjF], float]:
+    def update_tables_scale(cls, tables: list[QTableF], image_data: ImageData, previous_ratio: float) -> tuple[list[QTableF], float]:
         """Change the size of all tables in the list based on the change of the scale (size) of the image
         relative to it's original size.
 
         Args:
-            tables (list[TableObjF]): Tables to be affected
+            tables (list[QTableF]): Tables to be affected
             image_data (ImageData): Image data obj containing the original image (/w size), scaled image
             (/w size) and the (origin) position of the top-left corner of that image
             previous_ratio (float): Ratio of the scaled image size to the original image size that was
             used previously to recalculate size of tables
 
         Returns:
-            tuple[list[TableObjF], float]: first item is the list with scaled tables and the second one is
+            tuple[list[QTableF], float]: first item is the list with scaled tables and the second one is
             the new absolute ratio calculated
         """
-        scaled_tables: list[TableObjF] = []
+        scaled_tables: list[QTableF] = []
         
         # relative (to the previus one) ratio of the rescaled image's size to the original size
         ratio_x = image_data.current_scaled_image.size().width() / image_data.original_image.size().width()
         ratio_y = image_data.current_scaled_image.size().height() / image_data.original_image.size().height()
         abs_ratio = (ratio_x + ratio_y) / 2
         rel_ratio = abs_ratio / previous_ratio
-        
-        print(rel_ratio)
         
         # x and y coordinate of the centre of the image
         img_centre_x = image_data.current_origin_pos.x() + image_data.current_scaled_image.size().width() / 2
@@ -765,7 +785,7 @@ class TableDrawingTool:
             scaled_boundary = QtCore.QRectF(scaled_line_top_left.p2(), scaled_line_bottom_right.p2())
             
             scaled_tables.append(
-                TableObjF(
+                QTableF(
                     boundary=scaled_boundary,
                     vertical_separators=cls._get_vlines(scaled_boundary, len(vline_distr) + 1, vline_distr),
                     horizontal_separators=cls._get_hlines(scaled_boundary, len(hline_distr) + 1, hline_distr)
@@ -778,38 +798,42 @@ class TableDrawingTool:
     def update_table_element(
         cls,
         pos: QtCore.QPointF,
-        selected_table: SelectedTable
-    ) -> TableObjF:
+        table_info: TableInfo
+    ) -> QTableF:
         """Allows to change the position of the vertical and horizontal lines as well as the size of the
         table boundary while preserving distribution of the vlines and hlines.
 
         Args:
             pos (QtCore.QPointF): Current position of the coursor
-            selected_table (SelectedTable): SelectedTable object containing details about the selected
+            table_info (TableInfo): TableInfo object containing details about the selected
             table as well as the element that is supposed to be translated/resized
 
         Raises:
             ValueError: Raised when `selected_element` is NoneType
 
         Returns:
-            TableObjF: Updated Table object
+            QTableF: Updated Table object
         """
-        if selected_table.selected_element is not None:
+        
+        table = table_info.selected_table.table
+        elem = table_info.selected_element
+        
+        if elem is not None:
             # An element of the table has been selected ('grabbed')
             
-            if selected_table.selected_element.key == 'boundary':
+            if elem.key == 'boundary':
                 # The handle is on the boundary
-                return cls.update_table_size(pos, selected_table.table_obj, selected_table.selected_element.index_or_loaction)
+                return cls.update_table_size(pos, table, elem.index_or_loaction)
 
-            elif selected_table.selected_element.key == 'vertical_separators':
+            elif elem.key == 'vertical_separators':
                 # The handle is on one of the vertical lines
                 
                 # top and bottom y-coordinates of the line (x is constant across the line)
-                y1 = selected_table.table_obj.boundary.top()
-                y2 = selected_table.table_obj.boundary.bottom()
+                y1 = table.boundary.top()
+                y2 = table.boundary.bottom()
                 
                 # the distance that the line is allowed to travel in each direction along the x-axis
-                xmin, xmax = cls._get_vline_translation_boundaries(selected_table.table_obj, selected_table.selected_element.index_or_loaction)
+                xmin, xmax = cls._get_vline_translation_boundaries(table, elem.index_or_loaction)
                 
                 # if the coursor is beyond either boundary the line will lock at it's min/max
                 if pos.x() < xmin:
@@ -820,19 +844,19 @@ class TableDrawingTool:
                     new_xpos = pos.x()
 
                 # update the line with new coordinates
-                selected_table.table_obj.vertical_separators[selected_table.selected_element.index_or_loaction] = QtCore.QLineF(QtCore.QPointF(new_xpos, y1), QtCore.QPointF(new_xpos, y2))
+                table.vertical_separators[elem.index_or_loaction] = QtCore.QLineF(QtCore.QPointF(new_xpos, y1), QtCore.QPointF(new_xpos, y2))
                 
-                return selected_table.table_obj
+                return table
             
-            elif selected_table.selected_element.key == 'horizontal_separators':
+            elif elem.key == 'horizontal_separators':
                 # The handle is on one of the horizontal lines
                 
                 # left and right x-coordinates of the line (y is constant across the line)
-                x1 = selected_table.table_obj.boundary.left()
-                x2 = selected_table.table_obj.boundary.right()
+                x1 = table.boundary.left()
+                x2 = table.boundary.right()
                 
                 # the distance that the line is allowed to travel in each direction along the y-axis
-                ymin, ymax = cls._get_hline_translation_boundaries(selected_table.table_obj, selected_table.selected_element.index_or_loaction)
+                ymin, ymax = cls._get_hline_translation_boundaries(table, elem.index_or_loaction)
                 
                 # if the coursor is beyond either boundary the line will lock at it's min/max
                 if pos.y() < ymin:
@@ -843,15 +867,15 @@ class TableDrawingTool:
                     new_ypos = pos.y()
 
                 # update the line with new coordinates
-                selected_table.table_obj.horizontal_separators[selected_table.selected_element.index_or_loaction] = QtCore.QLineF(QtCore.QPointF(x1, new_ypos), QtCore.QPointF(x2, new_ypos))
+                table.horizontal_separators[elem.index_or_loaction] = QtCore.QLineF(QtCore.QPointF(x1, new_ypos), QtCore.QPointF(x2, new_ypos))
                 
-                return selected_table.table_obj
+                return table
             
         else:
-            raise ValueError('SelectedTable.SelectedElement cannot be NoneType to run this operation.')
+            raise ValueError('TableInfo.SelectedElement cannot be NoneType to run this operation.')
         
     @classmethod
-    def _update_division_count(cls, table: TableObjF, axis: Literal['x', 'y'], target_div_count: int, add_mode: AddMode) -> TableObjF:
+    def _update_division_count(cls, table: QTableF, axis: Literal['x', 'y'], target_div_count: int, add_mode: AddMode) -> QTableF:
         """Add vertical (`axis='x'`) or horizontal (`axis='y'`) div(s). If the add_mode is set to:
             - `AddMode.APPEND` the table will expand when adding column/row
             - `AddMode.INSERT_AT_END` the table size will remain the same and the width of existing
@@ -886,7 +910,7 @@ class TableDrawingTool:
             Then, that new distribution is applied to generate new vlines and optionally resize the table boundary and hlines.
             
         Args:
-            table (TableObjF): table to add/subtract divs to/from
+            table (QTableF): table to add/subtract divs to/from
             axis (Literal[&#39;x&#39;, &#39;y&#39;]): 'x' -> add/subtract columns, 'y' -> add/subtract rows
             target_div_count (int): the desired number of columns/rows
             add_mode (AddMode): see beggining of the doc
@@ -895,7 +919,7 @@ class TableDrawingTool:
             ValueError: raised when the target_div_count is smaller than one
 
         Returns:
-            TableObjF: updated table
+            QTableF: updated table
         """
         
         if target_div_count < 1:
@@ -950,14 +974,14 @@ class TableDrawingTool:
             perpendicular_lines_distr
         )
             
-        return TableObjF(
+        return QTableF(
             boundary=boundary,
             vertical_separators=new_lines if axis == 'x' else perpendicular_lines,
             horizontal_separators=perpendicular_lines if axis == 'x' else new_lines
         )
 
     @classmethod
-    def update_column_count(cls, table: TableObjF, col_count: int, add_column_mode: AddMode) -> TableObjF:
+    def update_column_count(cls, table: QTableF, col_count: int, add_column_mode: AddMode) -> QTableF:
         """Add or remove a column. If the add_mode is set to:
             - `AddMode.APPEND` the table will expand when adding a column
             - `AddMode.INSERT_AT_END` the table width will remain the same and the width of existing
@@ -965,7 +989,7 @@ class TableDrawingTool:
         The width of the newly added column is the same as the width of the most-right column.
             
         Args:
-            table (TableObjF): table to add/subtract columns to/from
+            table (QTableF): table to add/subtract columns to/from
             col_count (int): the desired number of columns
             add_mode (AddMode): see beggining of the doc
 
@@ -973,12 +997,12 @@ class TableDrawingTool:
             ValueError: raised when the col_count is smaller than one
 
         Returns:
-            TableObjF: updated table
+            QTableF: updated table
         """
         return cls._update_division_count(table, 'x', col_count, add_column_mode)
 
     @classmethod
-    def update_row_count(cls, table: TableObjF, row_count: int, add_row_mode: AddMode) -> TableObjF:
+    def update_row_count(cls, table: QTableF, row_count: int, add_row_mode: AddMode) -> QTableF:
         """Add or remove a row. If the add_mode is set to:
             - `AddMode.APPEND` the table will expand when adding a row
             - `AddMode.INSERT_AT_END` the table height will remain the same and the height of existing
@@ -986,7 +1010,7 @@ class TableDrawingTool:
         The height of the newly added row is the same as the height of the most-bottom row.
             
         Args:
-            table (TableObjF): table to add/subtract rows to/from
+            table (QTableF): table to add/subtract rows to/from
             row_count (int): the desired number of rows
             add_mode (AddMode): see beggining of the doc
 
@@ -994,6 +1018,6 @@ class TableDrawingTool:
             ValueError: raised when the row_count is smaller than one
 
         Returns:
-            TableObjF: updated table
+            QTableF: updated table
         """
         return cls._update_division_count(table, 'y', row_count, add_row_mode)
