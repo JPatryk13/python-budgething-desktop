@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import enum
 import sys
 from typing import Any
@@ -95,15 +95,8 @@ class ServiceManager:
         Raises:
             __NoServicesException
         """
-        print(f'running: ServiceManager.run with service_name={service_name}')
         if cls.has_services():
             for i, serv in enumerate(cls.services):
-                
-                # debug
-                if service_name == cls.ServiceName.ADD_PROFILE_FORM and serv.name == service_name:
-                    print(f'\tservice.name={serv.name}')
-                    print(f'\tservice.obj={serv.obj}')
-                    print(f'\tservice.is_active={serv.is_active}')
                 
                 if serv.name == service_name and not serv.is_active:
                     serv.obj.show()
