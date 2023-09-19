@@ -1,27 +1,10 @@
 import math
-from typing import Literal
+from typing import Any, Callable, Literal, TypedDict
 from unittest import TestCase
 from dataclasses import asdict
 
-
-from PyQt6.QtWidgets import (
-    QWidget,
-    QLabel,
-    QComboBox,
-    QSpinBox,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QLineEdit
-)
-from PyQt6.QtCore import (
-    QLine,
-    QLineF,
-    QRect,
-    QRectF,
-    QPoint,
-    QPointF
-)
+from PyQt6 import QtWidgets, QtCore
+from budgeting_app.utils.tools import is_all_not_none
 
 DEFAULT_SPINBOX_WIDTH = 40
 
@@ -32,16 +15,16 @@ def create_spinbox(
     _max: int | None = None,
     _label: str | None = None,
     _width: int = DEFAULT_SPINBOX_WIDTH
-) -> tuple[QWidget, QSpinBox]:
+) -> tuple[QtWidgets.QWidget, QtWidgets.QSpinBox]:
     
-    container_widget = QWidget()
-    container_widget_layout = QHBoxLayout()
+    container_widget = QtWidgets.QWidget()
+    container_widget_layout = QtWidgets.QHBoxLayout()
 
     if _label not in [None, ""]:
-        label = QLabel(_label)
+        label = QtWidgets.QLabel(_label)
         container_widget_layout.addWidget(label)
 
-    spinbox = QSpinBox()
+    spinbox = QtWidgets.QSpinBox()
     spinbox.setValue(_set)
     spinbox.setMinimum(_min)
     if _max is not None:
@@ -59,7 +42,7 @@ def create_spinbox_with_label(
     _set: int,
     _max: int | None = None,
     _width: int = DEFAULT_SPINBOX_WIDTH
-) -> tuple[QWidget, QSpinBox]:
+) -> tuple[QtWidgets.QWidget, QtWidgets.QSpinBox]:
     
     return create_spinbox(
         _min,
@@ -69,96 +52,16 @@ def create_spinbox_with_label(
         _width=_width
     )
     
-def add_removable_widget(
-    _subject_widget: QWidget,
-    _container_widget: QWidget,
-    _register: list[QWidget]
-) -> None:
-    """Add widget `_subject_widget` to `_container_widget` and `_register`.
-
-    Args:
-        _subject_widget (QWidget): Widget to be added
-        _container_widget (QWidget): Widget to add the _subject_widget to
-        _register (list[QWidget]): List storing all added widgets
-    """
-    def remove_widget(_w: QWidget, _l: list[QWidget]) -> None:
-        _l.remove(_w)
-        _w.deleteLater()
-        
-    close_button = QPushButton()
-    close_button.setText('X')
-    close_button.clicked.connect(lambda: remove_widget(_subject_widget, _register))
-    _subject_widget.layout().addWidget(close_button)
-    _register.append(_subject_widget)
-    _container_widget.layout().addWidget(_subject_widget)
-    
-    
-
-def add_removable_spinbox_to_widget(
-    w: QWidget,
-    l: list[QWidget],
-    _min: int,
-    _set: int,
-    _max: int | None = None,
-    _width: int = DEFAULT_SPINBOX_WIDTH
-) -> None:
-    """
-    Add spin box to the widget `w` and list `l`.
-    """
-    def remove_spin_box(_w: QWidget, _l: list[QWidget]) -> None:
-        _l.remove(_w)
-        _w.deleteLater()
-
-    spin_box_container, _ = create_spinbox(
-        _min,
-        _set,
-        _max=_max,
-        _width=_width
-    )
-    close_button = QPushButton()
-    close_button.setText('X')
-    close_button.clicked.connect(lambda: remove_spin_box(spin_box_container, l))
-    spin_box_container.layout().addWidget(close_button)
-    l.append(spin_box_container)
-    w.layout().addWidget(spin_box_container)
-
-
-def create_button_with_closeable_spinboxes(
-    _button_text: str,
-    _spin_box_list: list[QWidget],
-    _min: int,
-    _set: int,
-    _max: int | None = None,
-    _width: int = DEFAULT_SPINBOX_WIDTH
-) -> QWidget:
-    container_widget = QWidget()
-    layout = QVBoxLayout()
-    button = QPushButton()
-    button.setText(_button_text)
-    button.clicked.connect(lambda: add_removable_spinbox_to_widget(
-        container_widget,
-        _spin_box_list,
-        _min,
-        _set,
-        _max,
-        _width
-    ))
-    layout.addWidget(button)
-    container_widget.setLayout(layout)
-
-    return container_widget
-
-
 def create_dropdown_with_label(
     _label: str,
     _items: list[str],
     _default_index: int
-) -> tuple[QWidget, QComboBox]:
-    container_widget = QWidget()
-    layout = QVBoxLayout()
-    label = QLabel(_label)
+) -> tuple[QtWidgets.QWidget, QtWidgets.QComboBox]:
+    container_widget = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout()
+    label = QtWidgets.QLabel(_label)
     layout.addWidget(label)
-    dropdown = QComboBox()
+    dropdown = QtWidgets.QComboBox()
     dropdown.addItems(_items)
     dropdown.setCurrentIndex(_default_index)
     layout.addWidget(dropdown)
@@ -170,21 +73,21 @@ def create_text_area_with_label(
     _label: str,
     _label_postion: Literal['top', 'left', 'inside'],
     *,
-    _echo_mode: QLineEdit.EchoMode | None = None
-) -> tuple[QWidget, QLineEdit]:
+    _echo_mode: QtWidgets.QLineEdit.EchoMode | None = None
+) -> tuple[QtWidgets.QWidget, QtWidgets.QLineEdit]:
     
-    container_widget = QWidget()
+    container_widget = QtWidgets.QWidget()
     
     if _label_postion == 'top':
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
     else:
-        layout = QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         
     if _label_postion != 'inside':
-        label = QLabel(_label)
+        label = QtWidgets.QLabel(_label)
         layout.addWidget(label)
     
-    text_area = QLineEdit()
+    text_area = QtWidgets.QLineEdit()
     
     if _label_postion == 'inside':
         text_area.setPlaceholderText(_label)
@@ -198,42 +101,149 @@ def create_text_area_with_label(
     
     return container_widget, text_area
 
-def create_button_with_closeable_widgets(
-    _button_text: str,
-    _closeable_widget: QWidget,
-    _closeable_widget_list: list[QWidget]
-) -> QWidget:
-    container_widget = QWidget()
-    layout = QVBoxLayout()
-    button = QPushButton()
-    button.setText(_button_text)
+def create_checkbox_with_label(
+    _label: str | None = None,
+    _label_postion: Literal['top', 'left', 'right'] = 'left',
+    _set_checked: QtCore.Qt.CheckState = QtCore.Qt.CheckState.Unchecked
+) -> tuple[QtWidgets.QWidget, QtWidgets.QCheckBox]:
     
-    button.clicked.connect(lambda: add_removable_widget(
-        _closeable_widget,
-        container_widget,
-        _closeable_widget_list
-    ))
-    layout.addWidget(button)
+    if _label_postion in ['left', 'right']:
+        layout = QtWidgets.QHBoxLayout()
+    else:
+        layout = QtWidgets.QVBoxLayout()
+        
+    container_widget = QtWidgets.QWidget()
     container_widget.setLayout(layout)
-
-    return container_widget
+    
+    if _label is not None:
+        if _label_postion in ['left', 'top']:
+            # add label before checkbox
+            layout.addWidget(QtWidgets.QLabel(_label))
+            
+    cbox = QtWidgets.QCheckBox()
+    cbox.setCheckState(_set_checked)
+    layout.addWidget(cbox)
+    
+    if _label is not None:
+        if _label_postion == 'right':
+            # add label after checkbox
+            layout.addWidget(QtWidgets.QLabel(_label))
+            
+    return container_widget, cbox
+    
+    
+class ExpandableSpinBoxList:
+    
+    class QSpinBoxWrapper(TypedDict):
+        value_uuid: str
+        container_widget: QtWidgets.QWidget
+        sbox: QtWidgets.QSpinBox
+        
+    main_container: QtWidgets.QWidget
+    sbox_list: list[QSpinBoxWrapper]
+    
+    button_text: str
+    _min: int | None
+    _set: int
+    _max: int | None
+    width: int
+    
+    button: QtWidgets.QPushButton
+    add_value: Callable[[int], str]
+    update_value: Callable[[str, int], None]
+    remove_value: Callable[[str], None]
+    
+    def __init__(
+        self,
+        *,
+        button_text: str,
+        _min: int | None = None,
+        _set: int | None = None,
+        _max: int | None = None,
+        width: int = DEFAULT_SPINBOX_WIDTH
+    ) -> None:
+        self.sbox_list = []
+        self.button_text = button_text
+        self._min = _min
+        self._max = _max
+        self.width = width
+        
+        if _set is not None:
+            self._set = _set
+        else:
+            if _min is not None:
+                self._set = _min
+            elif _max is not None:
+                self._set = _max
+            else:
+                self._set = 0
+        
+        self._create_main_container()
+        self.button.clicked.connect(self.__add_sbox)
+        
+    def __sbox_val_changed(self, sbox_wrapper: QSpinBoxWrapper) -> None:
+        self.update_value(sbox_wrapper['value_uuid'], sbox_wrapper['sbox'].value())
+        
+    def _create_main_container(self) -> None:
+        self.main_container = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        self.button = QtWidgets.QPushButton()
+        self.button.setText(self.button_text)
+        layout.addWidget(self.button)
+        self.main_container.setLayout(layout)
+        
+    def __add_sbox(self) -> None:
+        # check if the callables were given
+        if not is_all_not_none(
+            getattr(self, 'add_value', None),
+            getattr(self, 'update_value', None),
+            getattr(self, 'remove_value', None)
+        ):
+            raise ValueError(f'One or more functions is missing.\n\tadd_value={getattr(self, "add_value", None)}\n\tupdate_value={getattr(self, "update_value", None)}\n\tremove_value={getattr(self, "remove_value", None)}')
+        
+        # create spin box
+        sbox_container, sbox = create_spinbox(
+            self._min,
+            self._set,
+            _max=self._max,
+            _width=self.width
+        )
+        sbox_wrapper: self.QSpinBoxWrapper = {
+            'sbox': sbox,
+            'container_widget': sbox_container,
+            'value_uuid': self.add_value(self._set)
+        }
+        sbox.valueChanged.connect(lambda: self.__sbox_val_changed(sbox_wrapper))
+        # create close button
+        close_button = QtWidgets.QPushButton()
+        close_button.setText('X')
+        close_button.clicked.connect(lambda: self.__remove_sbox(sbox_wrapper))
+        sbox_container.layout().addWidget(close_button)
+        # add sbox and it's container to corresponding lists and the main widget container
+        self.sbox_list.append(sbox_wrapper)
+        self.main_container.layout().addWidget(sbox_container)
+        
+    def __remove_sbox(self, sbox_wrapper: QSpinBoxWrapper) -> None:
+        self.sbox_list.remove(sbox_wrapper)
+        self.remove_value(sbox_wrapper['value_uuid'])
+        sbox_wrapper['container_widget'].deleteLater()
 
 class PyQtAssert:
     @staticmethod
-    def equalLines(qline1: QLineF | QLine, qline2: QLineF | QLine) -> None:
-        arr1 = [qline1.p1(), qline1.p2()]
-        arr2 = [qline2.p1(), qline2.p2()]
+    def equalLines(QLine1: QtCore.QLineF | QtCore.QLine, QLine2: QtCore.QLineF | QtCore.QLine) -> None:
+        arr1 = [QLine1.p1(), QLine1.p2()]
+        arr2 = [QLine2.p1(), QLine2.p2()]
         equal = PyQtAssert.equalPointsArray(arr1, arr2)
         if not equal:
-            TestCase().fail(f'qline1 and qline2 are not the same.\n\tqline1={qline1}\n\tqline2={qline2}')
+            TestCase().fail(f'QLine1 and QLine2 are not the same.\n\tQLine1={QLine1}\n\tQLine2={QLine2}')
 
     @staticmethod
-    def equalRectangles(qrect1: QRectF | QRect, qrect2: QRectF | QRect) -> None:
-        arr1 = [qrect1.topLeft(), qrect1.topRight(), qrect1.bottomLeft(), qrect1.bottomRight()]
-        arr2 = [qrect2.topLeft(), qrect2.topRight(), qrect2.bottomLeft(), qrect2.bottomRight()]
+    def equalRectangles(QRect1: QtCore.QRectF | QtCore.QRect, QRect2: QtCore.QRectF | QtCore.QRect) -> None:
+        arr1 = [QRect1.topLeft(), QRect1.topRight(), QRect1.bottomLeft(), QRect1.bottomRight()]
+        arr2 = [QRect2.topLeft(), QRect2.topRight(), QRect2.bottomLeft(), QRect2.bottomRight()]
         equal = PyQtAssert.equalPointsArray(arr1, arr2)
         if not equal:
-            TestCase().fail(f'qrect1 and qrect2 are not the same.\n\tqrect1={qrect1}\n\tqrect2={qrect2}')
+            TestCase().fail(f'QRect1 and QRect2 are not the same.\n\tQRect1={QRect1}\n\tQRect2={QRect2}')
 
     @staticmethod
     def equalTables(table1: dict, table2: dict) -> None:
@@ -242,18 +252,18 @@ class PyQtAssert:
         
         TestCase().assertEqual(set(table1.keys()), set(['boundary', 'vertical_separators', 'horizontal_separators']), f'table1={table1}\ntable2={table2}')
         TestCase().assertEqual(set(table2.keys()), set(['boundary', 'vertical_separators', 'horizontal_separators']), f'table1={table1}\ntable2={table2}')
-        TestCase().assertTrue(isinstance(table1['boundary'], QRectF), f'table1={table1}\ntable2={table2}')
-        TestCase().assertTrue(isinstance(table2['boundary'], QRectF), f'table1={table1}\ntable2={table2}')
+        TestCase().assertTrue(isinstance(table1['boundary'], QtCore.QRectF), f'table1={table1}\ntable2={table2}')
+        TestCase().assertTrue(isinstance(table2['boundary'], QtCore.QRectF), f'table1={table1}\ntable2={table2}')
 
         TestCase().assertTrue(isinstance(table1['vertical_separators'], list), f'table1={table1}\ntable2={table2}')
-        TestCase().assertTrue(all(map(lambda vline: isinstance(vline, QLineF), table1['vertical_separators'])), f'table1={table1}\ntable2={table2}')
+        TestCase().assertTrue(all(map(lambda vline: isinstance(vline, QtCore.QLineF), table1['vertical_separators'])), f'table1={table1}\ntable2={table2}')
         TestCase().assertTrue(isinstance(table2['vertical_separators'], list), f'table1={table1}\ntable2={table2}')
-        TestCase().assertTrue(all(map(lambda vline: isinstance(vline, QLineF), table2['vertical_separators'])), f'table1={table1}\ntable2={table2}')
+        TestCase().assertTrue(all(map(lambda vline: isinstance(vline, QtCore.QLineF), table2['vertical_separators'])), f'table1={table1}\ntable2={table2}')
 
         TestCase().assertTrue(isinstance(table1['horizontal_separators'], list), f'table1={table1}\ntable2={table2}')
-        TestCase().assertTrue(all(map(lambda hline: isinstance(hline, QLineF), table1['horizontal_separators'])), f'table1={table1}\ntable2={table2}')
+        TestCase().assertTrue(all(map(lambda hline: isinstance(hline, QtCore.QLineF), table1['horizontal_separators'])), f'table1={table1}\ntable2={table2}')
         TestCase().assertTrue(isinstance(table2['horizontal_separators'], list), f'table1={table1}\ntable2={table2}')
-        TestCase().assertTrue(all(map(lambda hline: isinstance(hline, QLineF), table2['horizontal_separators'])), f'table1={table1}\ntable2={table2}')
+        TestCase().assertTrue(all(map(lambda hline: isinstance(hline, QtCore.QLineF), table2['horizontal_separators'])), f'table1={table1}\ntable2={table2}')
 
         PyQtAssert.equalRectangles(table1['boundary'], table2['boundary'])
         
@@ -266,10 +276,10 @@ class PyQtAssert:
             PyQtAssert.equalLines(table1['horizontal_separators'][i], hline)
         
     @staticmethod
-    def equalPointsArray(_arr1: list[QPoint | QPointF], _arr2: list[QPoint | QPointF], _fail_if_false: bool = False) -> bool | None:
+    def equalPointsArray(_arr1: list[QtCore.QPoint | QtCore.QPointF], _arr2: list[QtCore.QPoint | QtCore.QPointF], _fail_if_false: bool = False) -> bool | None:
         """ Use only when elements are neither hashable nor sortable! """
         
-        # convert QPointF to tuples of floats and round each to get rid of the inequalities
+        # convert QtCore.QPointF to tuples of floats and round each to get rid of the inequalities
         # far behind the decimal place
         arr1 = list(map(lambda p: (round(p.x(), 3), round(p.y(), 3)), _arr1))
         arr2 = list(map(lambda p: (round(p.x(), 3), round(p.y(), 3)), _arr2))
