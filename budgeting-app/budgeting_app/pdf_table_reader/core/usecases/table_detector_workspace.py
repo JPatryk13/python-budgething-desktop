@@ -1,11 +1,36 @@
+from dataclasses import asdict, dataclass
 import enum
 import io
 from typing import Any, Literal
+from uuid import uuid4
+from budgeting_app.utils.types import TypedObservableDict
 
 from pdfplumber import table, page, _typing
 
-from budgeting_app.pdf_table_reader.core.entities.models import PDFFileWrapper, PDFPageWrapper, ImageWrapper, BASE_IMAGE_RESOLUTION
+from budgeting_app.pdf_table_reader.core.entities.models import ExplicitLineData, PDFFileWrapper, PDFPageWrapper, ImageWrapper, BASE_IMAGE_RESOLUTION
 
+
+DEFAULT_TABLE_SETTINGS = {
+    "vertical_strategy": "lines", 
+    "horizontal_strategy": "lines",
+    "explicit_vertical_lines": [],
+    "explicit_horizontal_lines": [],
+    "snap_tolerance": 3,
+    "snap_x_tolerance": 3,
+    "snap_y_tolerance": 3,
+    "join_tolerance": 3,
+    "join_x_tolerance": 3,
+    "join_y_tolerance": 3,
+    "edge_min_length": 3,
+    "min_words_vertical": 3,
+    "min_words_horizontal": 1,
+    "text_tolerance": 3,
+    "text_x_tolerance": 3,
+    "text_y_tolerance": 3,
+    "intersection_tolerance": 3,
+    "intersection_x_tolerance": 3,
+    "intersection_y_tolerance": 3,
+}
 
 class TableDetectorWorkspace:
     """
@@ -21,8 +46,11 @@ class TableDetectorWorkspace:
         
     pdf_file: PDFFileWrapper
     
-    def __init__(self, pdf_file: PDFFileWrapper) -> None:
+    def __init__(self, pdf_file: PDFFileWrapper, default_table_settings: table.T_table_settings = DEFAULT_TABLE_SETTINGS) -> None:
         self.pdf_file = pdf_file
+        
+        for p in self.pdf_file.pages:
+            p.table_settings = TypedObservableDict(default_table_settings)
 
     ###########################
     #        ADD PAGES        #
@@ -328,7 +356,8 @@ class TableDetectorWorkspace:
         img_bytes = []
         for i in page_indices:
             image_bytes_io = io.BytesIO()
-            img = self.pdf_file.pages[i].page.to_image(resolution, antialias=antialias).original
+            # img = self.pdf_file.pages[i].page.to_image(resolution, antialias=antialias).original
+            img = self.pdf_file.pages[i].page.to_image(resolution, antialias=antialias).debug_tablefinder(self.pdf_file.pages[i].table_settings)
             img.save(image_bytes_io, format=_format)
             img_bytes.append(image_bytes_io.getvalue())
             
@@ -356,8 +385,15 @@ class TableDetectorWorkspace:
         return self
     
     @property
-    def pdf_file_image(self) -> ImageWrapper | None:
-        return self.pdf_file.image
+    def image_bytes(self) -> list[bytes]:
+        # 'refresh' the image
+        self.pdf_file.image.image_bytes=self._get_pages_images_bytes(
+            page_indices=[*range(len(self.pdf_file.pages))] if self.pdf_file.image.page_indices == 'all' else self.pdf_file.image.page_indices,
+            resolution=self.pdf_file.image.resolution,
+            antialias=self.pdf_file.image.antialias,
+            _format=self.pdf_file.image._format
+        )
+        return self.pdf_file.image.image_bytes
     
     ###########################
     #      REMOVE PAGES       #
@@ -390,7 +426,7 @@ class TableDetectorWorkspace:
         pos: _typing.T_num,
         orientation: Literal['vertical', 'horizontal'],
         page_index: int
-    ) -> 'TableDetectorWorkspace':
+    ) -> tuple['TableDetectorWorkspace', str]:
         
         if self.pdf_file.image is not None:
                 
@@ -398,40 +434,43 @@ class TableDetectorWorkspace:
                 raise ValueError(f'Orientation must be either vertical or horizontal. Got {orientation} instead.')
                 
             normalised_pos = self._normalise_position(pos)
+            line = ExplicitLineData(normalised_pos, orientation)
+            self.pdf_file.pages[page_index].explicit_lines.append(line)
+            self.set_table_settings_val(page_index, f'explicit_{orientation}_lines', list(set([p.value for p in self.pdf_file.pages[page_index].explicit_lines])))
             
-            self.set_table_settings_val(page_index, f'explicit_{orientation}_lines', normalised_pos)
-            
-            return self
+            return self, line.uuid
             
         else:
             raise ValueError('Image has not been set, therefore, the element cannot be added. ' \
                 'Use set_table_settings() method to add the element instead.')
             
-    def remove_line(
+    def update_line_pos(
         self,
+        uuid: str,
         pos: _typing.T_num,
-        orientation: Literal['vertical', 'horizontal'],
         page_index: int
     ) -> 'TableDetectorWorkspace':
         if self.pdf_file.image is not None:
-                
-            if orientation not in ['vertical', 'horizontal']:
-                raise ValueError(f'Orientation must be either vertical or horizontal. Got {orientation} instead.')
             
-            normalised_pos = self._normalise_position(pos)
+            line_index, line = [(i, p) for i, p in enumerate(self.pdf_file.pages[page_index].explicit_lines) if p.uuid == uuid][0]
+            line.value = self._normalise_position(pos)
+            self.pdf_file.pages[page_index].explicit_lines[line_index] = line
+            self.set_table_settings_val(page_index, f'explicit_{line.orientation}_lines', list(set([p.value for p in self.pdf_file.pages[page_index].explicit_lines])))
             
-            explicit_lines: list = self.get_table_settings(page_index).get(f'explicit_{orientation}_lines', [])
-                
-            if explicit_lines != []:
-                explicit_lines.remove(normalised_pos)
-                
-                self.set_table_settings_val(page_index, f'explicit_{orientation}_lines', explicit_lines)
-                
-                return self
+        else:
+            raise ValueError('Image has not been set, therefore, the element cannot be removed. ' \
+                'Use set_table_settings() method to add the element instead.')
             
-            else:
-                raise ValueError(f'Could not remove element at pos={pos} (normalised_pos=' \
-                    f'{normalised_pos}). explicit_{orientation}_lines is empty.')
+    def remove_line(
+        self,
+        uuid: str,
+        page_index: int
+    ) -> 'TableDetectorWorkspace':
+        if self.pdf_file.image is not None:
+            
+            line = [p for p in self.pdf_file.pages[page_index].explicit_lines if p.uuid == uuid][0]
+            self.pdf_file.pages[page_index].explicit_lines.remove(line)
+            self.set_table_settings_val(page_index, f'explicit_{line.orientation}_lines', list(set([p.value for p in self.pdf_file.pages[page_index].explicit_lines])))
             
         else:
             raise ValueError('Image has not been set, therefore, the element cannot be removed. ' \
@@ -498,29 +537,48 @@ class TableDetectorWorkspace:
     #    SET & GET SETTINGS   #
     ###########################
     
-    def set_table_settings_val(self, page_number: int, key: str, val: Any) -> 'TableDetectorWorkspace':
-        
-        ts = self.get_table_settings(page_number)
-        
-        if key in ['explicit_vertical_lines', 'explicit_horizontal_lines']:
-            
-            if isinstance(val, list):
-                ts[key] = val
-            elif key in ts.keys():
-                if val not in ts[key]:
-                    ts[key].append(val)
-            else:
-                ts[key] = [val]
-        
+    def set_table_settings_val(self, page_index: int | list[int] | Literal['all'], key: str, val: Any) -> 'TableDetectorWorkspace':
+
+        print(f'TableDetectorWorkspace.set_table_settings_val: page_index={page_index}, key={key}, val={val}')
+
+        if isinstance(page_index, int):
+            _p_ind = [page_index]
+        elif isinstance(page_index, list):
+            _p_ind = page_index
+        elif page_index == 'all':
+            _p_ind = self.pdf_file.image.page_indices if isinstance(self.pdf_file.image.page_indices, list) else [*range(len(self.pdf_file.pages))]
         else:
-            ts.update({key: val})
+            raise TypeError
+        
+        for i in _p_ind:
+        
+            ts = self.get_table_settings(i)
             
-        self.pdf_file.pages[page_number].table_settings = ts
+            if key in ['explicit_vertical_lines', 'explicit_horizontal_lines']:
+                
+                bad_val_error_msg = 'Parameter val can be a list of numbers or a number when key is ' \
+                    '\'explicit_vertical_lines\' or \'explicit_horizontal_lines\'.'
+                
+                if isinstance(val, list):
+                    ts[key] = val
+                elif isinstance(val, int):
+                    if key in ts.keys():
+                        if val not in ts[key]:
+                            ts[key].append(val)
+                    else:
+                        ts[key] = [val]
+                else:
+                    raise ValueError(bad_val_error_msg)
+                
+                self.pdf_file.pages[i].table_settings = ts
             
+            else:
+                self.pdf_file.pages[i].table_settings[key] = val
+        
         return self
         
-    def get_table_settings(self, page_number: int) -> table.T_table_settings:
-        return self.pdf_file.pages[page_number].table_settings
+    def get_table_settings(self, page_index: int) -> TypedObservableDict:
+        return self.pdf_file.pages[page_index].table_settings
     
     ###########################
     #   GET TABLE TEXT DATA   #
