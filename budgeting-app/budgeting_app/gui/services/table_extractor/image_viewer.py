@@ -98,6 +98,7 @@ class Canvas(QtWidgets.QWidget):
     
     @image_bytes.setter
     def image_bytes(self, val: bytes) -> None:
+        print('Canvas.image_bytes.setter')
         self.__set_image(val)
     
     @drawing_enabled.setter
@@ -143,18 +144,27 @@ class Canvas(QtWidgets.QWidget):
             self.update()
     
     def __set_image(self, img_bytes: bytes) -> None:
+        print('Canvas.__set_image')
         
         # Get PIL.Image object from bytes
         img = QtGui.QImage().fromData(QtCore.QByteArray(img_bytes))
-    
-        # Add ImageData object to the self.images_data list
-        self.image_data = ImageData(
-            original_image=img,
-            current_scaled_image=img,
-            current_origin_pos=QtCore.QPointF(0.0, 0.0)
-        )
         
-        self.update_image_origin_pos()
+        if getattr(self, 'image_data', None) is None:
+            
+            # Add ImageData object to the self.images_data list
+            self.image_data = ImageData(
+                original_image=img,
+                current_scaled_image=img,
+                current_origin_pos=QtCore.QPointF(0.0, 0.0)
+            )
+            self.update_image_origin_pos()
+            
+        else:
+            
+            # Update image content but keep the scale and origin position the same
+            self.image_data.original_image = img
+            self.image_data.current_scaled_image = img.scaled(self.image_data.current_scaled_image.size())
+            
         self.update()
             
     def update_image_origin_pos(self) -> tuple[float, float]:
@@ -209,9 +219,10 @@ class Canvas(QtWidgets.QWidget):
         if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
 
             if not self.is_drawing_enabled:
-
+                # drawing is disabled
                 if self.table_info.selected_table is None:
-
+                    # no table is selected - adjust position of the image based on the coursor movement?
+                    
                     dx = event.position().x() - self.end_pos.x()
                     dy = event.position().y() - self.end_pos.y()
                     self.offset_x += dx
@@ -265,6 +276,9 @@ class Canvas(QtWidgets.QWidget):
                     # when we were holding an element just set selected_table_element to None
                     self.table_info.selected_element = None
 
+            self.end_pos = None
+            self.start_pos = None
+            
             self.update()
 
     def paintEvent(self, _: QtGui.QPaintEvent):
@@ -272,17 +286,24 @@ class Canvas(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         painter.drawImage(self.image_data.current_origin_pos, self.image_data.current_scaled_image)
 
-        if not self.is_drawing_enabled and self.table_info.selected_table is not None:
-            TableDrawingTool.draw_selection_handles(painter, self.tables[self.table_info.selected_table.index])
-        elif self.is_drawing_enabled and is_all_not_none(self.start_pos, self.end_pos):
-            TableDrawingTool.draw(
-                painter=painter,
-                start_qpoint=self.start_pos,
-                end_qpoint=self.end_pos,
-                col_count=self.table_info.table_drawing_settings.col_count,
-                row_count=self.table_info.table_drawing_settings.row_count
-            )
+        if self.is_drawing_enabled:
+            # drawing is enabled
+            if is_all_not_none(self.start_pos, self.end_pos):
+                # table is being drawn
+                TableDrawingTool.draw(
+                    painter=painter,
+                    start_qpoint=self.start_pos,
+                    end_qpoint=self.end_pos,
+                    col_count=self.table_info.table_drawing_settings.col_count,
+                    row_count=self.table_info.table_drawing_settings.row_count
+                )
+        else:
+            # drawing is disabled
+            if self.table_info.selected_table is not None:
+                # table is selected
+                TableDrawingTool.draw_selection_handles(painter, self.tables[self.table_info.selected_table.index])
 
+        # draw existing tables
         TableDrawingTool.draw_all(painter, self.tables)
             
             
@@ -291,25 +312,22 @@ class ImageViewer(QtWidgets.QWidget):
     tab_widget: QtWidgets.QTabWidget
     tabs: list[Canvas]
     
-    newTable = QtCore.pyqtSignal(int, QTableF)
+    newTable = QtCore.pyqtSignal(QTableF)
     """
     Args:\n
-        `page_index (int)` - index of the page where the table is created\n
         `table (QTableF)` - new table object\n
     """
     
-    tableUpdated = QtCore.pyqtSignal(int, int, QTableF)
+    tableUpdated = QtCore.pyqtSignal(int, QTableF)
     """
     Args:\n
-        `page_index (int)` - index of the page where the table is updated\n
         `table_index (int)` - index of the updated table\n
         `table (QTableF)` - updated table object\n
     """
 
-    tableDeleted = QtCore.pyqtSignal(int, int)
+    tableDeleted = QtCore.pyqtSignal(int)
     """
     Args:\n
-        `page_index (int)` - index of the page where the table is deleted\n
         `table_index (int)` - index of the deleted table\n
     """
     
@@ -328,7 +346,6 @@ class ImageViewer(QtWidgets.QWidget):
         
         # Initialize tab screen
         self.tab_widget = QtWidgets.QTabWidget()
-        # self.tab_widget.resize(300, 200)
   
         # Add tabs to widget
         self.tab_layout.addWidget(self.tab_widget)
@@ -339,12 +356,52 @@ class ImageViewer(QtWidgets.QWidget):
         
         self.tabs = []
         
-    def set_images(self, image_bytes_list: list[bytes]) -> None:
+    @property
+    def current_tab(self) -> int:
+        return self.tab_widget.currentIndex()
+    
+    @current_tab.setter
+    def current_tab(self, val: int) -> None:
+        self.tab_widget.setCurrentIndex(val)
         
-        for i, img_bytes in enumerate(image_bytes_list):
-            tab = Canvas(img_bytes)
-            self.tab_widget.addTab(tab, str(i))
-            self.tabs.append(tab)
+    def set_images(self, image_bytes_list: list[bytes]) -> None:
+        zipped = [
+            (
+                image_bytes_list[i] if i < len(image_bytes_list) else None,
+                self.tabs[i] if i < len(self.tabs) else None
+            )
+            for i
+            in range(max(len(image_bytes_list), len(self.tabs)))
+        ]
+        for i, (img_bytes, tab) in enumerate(zipped):
+            if tab is None:
+                # tab doesn't exist for given img bytes -> create new tab
+                
+                # add tab to the widget and the list
+                self.tabs.append(Canvas(img_bytes))
+                self.tab_widget.addTab(self.tabs[i], str(i))
+                
+                # relay signals
+                self.tabs[i].newTable.connect(lambda table: self.newTable.emit(table))
+                self.tabs[i].tableUpdated.connect(lambda table_index, table: self.tableUpdated.emit(table_index, table))
+                self.tabs[i].tableDeleted.connect(lambda table_index: self.tableDeleted.emit(table_index))
+                self.tabs[i].tableSelected.connect(lambda table_index: self.tableSelected.emit(table_index))
+                self.tabs[i].tableDeselected.connect(lambda: self.tableDeselected.emit())
+                
+            elif img_bytes is None:
+                # tab exists already but the image bytes is not given -> remove tab
+                
+                self.tab_widget.removeTab(i)
+                self.tabs.pop(i)
+                
+            else:
+                # tab exists and the image_bytes has been given, update the image in the tab
+                self.tabs[i].image_bytes = img_bytes
+                
+                
+    def update_image(self, tab_index: int, image_bytes: bytes) -> None:
+        print(f'ImageViewer.update_image: tab_index={tab_index}, image_bytes=...')
+        self.tabs[tab_index].image_bytes = image_bytes
             
     def set_tab_attr(self, tab_index: int, attr_name: str, attr_value: Any) -> None:
         if attr_name in self.canvas_attrs:
