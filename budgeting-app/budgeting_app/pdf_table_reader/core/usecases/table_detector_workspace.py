@@ -1,8 +1,10 @@
 from dataclasses import asdict, dataclass
 import enum
 import io
+import logging
 from typing import Any, Literal
 from uuid import uuid4
+from budgeting_app.utils.logging import CustomLoggerAdapter
 from budgeting_app.utils.types import TypedObservableDict
 
 from pdfplumber import table, page, _typing
@@ -45,8 +47,13 @@ class TableDetectorWorkspace:
         REPLACE = 3
         
     pdf_file: PDFFileWrapper
+    logger: logging.LoggerAdapter
     
     def __init__(self, pdf_file: PDFFileWrapper, default_table_settings: table.T_table_settings = DEFAULT_TABLE_SETTINGS) -> None:
+        
+        self.logger = CustomLoggerAdapter.getLogger('pdf_table_reader', className='TableDetectorWorkspace')
+        self.logger.debug('Inititalising TableDetectorWorkspace.')
+        
         self.pdf_file = pdf_file
         
         for p in self.pdf_file.pages:
@@ -370,6 +377,9 @@ class TableDetectorWorkspace:
         antialias: bool = False,
         _format: str = 'PNG',
     ) -> 'TableDetectorWorkspace':
+        
+        self.logger.debug(f'Rendering images for {page_indices} pages with {resolution} px/in resolution, antialias {"on" if antialias else "off"} and format set to {_format}.')
+        
         self.pdf_file.image = ImageWrapper(
             image_bytes=self._get_pages_images_bytes(
                 page_indices=[*range(len(self.pdf_file.pages))] if page_indices == 'all' else page_indices,
@@ -386,6 +396,9 @@ class TableDetectorWorkspace:
     
     @property
     def image_bytes(self) -> list[bytes]:
+        
+        self.logger.debug('Applying pages\' settings to corresponding images.')
+        
         # 'refresh' the image
         self.pdf_file.image.image_bytes=self._get_pages_images_bytes(
             page_indices=[*range(len(self.pdf_file.pages))] if self.pdf_file.image.page_indices == 'all' else self.pdf_file.image.page_indices,
@@ -393,6 +406,9 @@ class TableDetectorWorkspace:
             antialias=self.pdf_file.image.antialias,
             _format=self.pdf_file.image._format
         )
+        
+        self.logger.debug(f'{self.pdf_file.image.page_indices} pages were affected.')
+        
         return self.pdf_file.image.image_bytes
     
     ###########################
@@ -481,11 +497,13 @@ class TableDetectorWorkspace:
         pos: list[_typing.T_num],
         orientation: Literal['vertical', 'horizontal'],
         page_index: int
-    ) -> 'TableDetectorWorkspace':
-        for p in pos:
-            self.add_line(p, orientation, page_index)
+    ) -> tuple['TableDetectorWorkspace', list[str]]:
+        uuids: list[str] = []
         
-        return self
+        for p in pos:
+            uuids.append(self.add_line(p, orientation, page_index)[1])
+        
+        return self, uuids
     
     def remove_lines(
         self,
@@ -505,13 +523,20 @@ class TableDetectorWorkspace:
         vlines: list[_typing.T_num],
         hlines: list[_typing.T_num],
         page_index: int
-    ) -> 'TableDetectorWorkspace':
+    ) -> tuple['TableDetectorWorkspace', list[str]]:
         
         (x0, y0), (x1, y1) = top_left, bottom_right
-        self.add_lines([x0, x1, *vlines], 'vertical', page_index)
-        self.add_lines([y0, y1, *hlines], 'horizontal', page_index)
         
-        return self
+        uuids = [
+            *self.add_lines([x0, x1, *vlines], 'vertical', page_index)[1],
+            *self.add_lines([y0, y1, *hlines], 'horizontal', page_index)[1]
+        ]
+        
+        for line in self.pdf_file.pages[page_index].explicit_lines:
+            for line.uuid in uuids:
+                line.is_part_of_table = True
+        
+        return self, uuids
     
     def remove_table(
         self,
@@ -529,8 +554,12 @@ class TableDetectorWorkspace:
         return self
     
     def remove_all_elements(self, page_index: int) -> 'TableDetectorWorkspace':
+        
+        self.pdf_file.pages[page_index].explicit_lines = []
+        
         self.set_table_settings_val(page_index, f'explicit_vertical_lines', [])
         self.set_table_settings_val(page_index, f'explicit_horizontal_lines', [])
+        
         return self
     
     ###########################
