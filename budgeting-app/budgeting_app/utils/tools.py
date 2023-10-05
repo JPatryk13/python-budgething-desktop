@@ -22,6 +22,7 @@ def distance_from_line(
 def is_all_not_none(*args: list[Any]) -> bool:
     return all(list(map(lambda val: val is not None, args)))
 
+
 class InspectMethod:
     
     class Expected(TypedDict, total=False):
