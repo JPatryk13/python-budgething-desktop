@@ -1,5 +1,6 @@
 import sys
 from typing import Any
+import logging
 
 from PyQt6.QtWidgets import (
     QLabel,
@@ -19,6 +20,7 @@ from PyQt6.QtCore import Qt, QPoint
 
 from budgeting_app.gui.services.base import MainWindow, ServiceManager
 from budgeting_app.pdf_table_reader.core.usecases.pdf_reader import PDFReader
+from budgeting_app.utils.logging import CustomLoggerAdapter
 
 
 DEFAULT_BORDER_COLOR = QColor('#c5c5ca')
@@ -36,9 +38,11 @@ class DragNDropLabel(QWidget):
     border_pen: QPen | None
     border_radius: int | None
     text_stylesheet: str | None
+    logger: logging.LoggerAdapter
     
     def __init__(self, label_text: str):
         super().__init__()
+        self.logger = CustomLoggerAdapter.getLogger('gui', className='DragNDropLabel')
 
         layout = QVBoxLayout(self)
         # Create a QLabel for the text
@@ -102,8 +106,15 @@ class DragNDropLabel(QWidget):
 
 
 class AddDataFromFile(MainWindow):
+    logger: logging.LoggerAdapter
+    main_widget: QWidget
+    main_layout: QVBoxLayout
+    drag_n_drop_label: DragNDropLabel
+    
     def __init__(self, parent: Any | None = None):
         super().__init__(parent)
+        self.logger = CustomLoggerAdapter.getLogger('gui', className='AddDataFromFile')
+        
         self.setWindowTitle("Budgeting App - Add Data From File")
         
         self.window_width, self.window_height = 500, 400
@@ -126,29 +137,53 @@ class AddDataFromFile(MainWindow):
         
         self.setCentralWidget(self.main_widget)
         
-    def dragEnterEvent(self, event: QDragEnterEvent | None):
-        if event is not None:
-            if event.mimeData().hasUrls():
-                if [qurl.toLocalFile() for qurl in event.mimeData().urls()][0].endswith(RECOGNISED_FILETYPES):
-                    event.accept()
-                    return None
+    def dragEnterEvent(self, event: QDragEnterEvent):
+            
+        self.logger.debug(f'Got event.mimeData.urls={event.mimeData().urls()}')
+        
+        if event.mimeData().hasUrls():
+            if [qurl.toLocalFile() for qurl in event.mimeData().urls()][0].endswith(RECOGNISED_FILETYPES):
                 
-            event.ignore()
+                event.accept()
+                self.logger.debug('QDragEnterEvent accepted.')
+                
+                return None
+            
+            self.logger.info(f'Unrecognised file extension: \'.{[qurl.toLocalFile() for qurl in event.mimeData().urls()][0].split(".")[-1]}\'')
+        
+        event.ignore()
 
     def dropEvent(self, event: QDropEvent):
+        
         files = [u.toLocalFile() for u in event.mimeData().urls()]
+        
         # take only the first one
-        file_path = files[0]
-        if file_path.endswith('.pdf'):
-            pdf_file_wrapper = PDFReader.open(file_path=file_path)
-            ServiceManager.service_attr(ServiceManager.ServiceName.TABLE_EXTRACTOR, 'set_table_detector_workspace', pdf_file_wrapper=pdf_file_wrapper)
-            ServiceManager.run(ServiceManager.ServiceName.TABLE_EXTRACTOR)
-        elif file_path.endswith('.csv'):
-            pass
-        elif file_path.endswith('.json'):
-            pass
+        filepath = files[0]
+        self.logger.info(f'Got file: \'{filepath.split("/")[-1]}\'')
+        
+        if filepath.endswith('.pdf'):
+            
+            pdf_file_wrapper = PDFReader.open(filepath=filepath)
+                
+            if pdf_file_wrapper is not None:
+                
+                ServiceManager.service_attr(ServiceManager.ServiceName.TABLE_EXTRACTOR, 'set_table_detector_workspace', pdf_file_wrapper=pdf_file_wrapper)
+                ServiceManager.run(ServiceManager.ServiceName.TABLE_EXTRACTOR)
+                event.accept()
+                
+            else:
+                self.logger.warning(f'pdf_file_wrapper is None.')
+                
+        elif filepath.endswith('.csv'):
+            ServiceManager.service_attr(ServiceManager.ServiceName.CSV_TABLE_EXTRACTOR, 'add_data_from_file', filepath=filepath)
+            ServiceManager.run(ServiceManager.ServiceName.CSV_TABLE_EXTRACTOR)
+            event.accept()
+        elif filepath.endswith('.json'):
+            ServiceManager.service_attr(ServiceManager.ServiceName.JSON_TABLE_EXTRACTOR, 'add_data_from_file', filepath=filepath)
+            ServiceManager.run(ServiceManager.ServiceName.JSON_TABLE_EXTRACTOR)
+            event.accept()
         else:
-            pass
+            event.ignore()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

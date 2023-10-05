@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from PyQt6 import QtWidgets, QtCore, QtGui
 
@@ -10,12 +11,14 @@ from budgeting_app.gui.services.table_extractor.image_tools import (
     TableDrawingTool,
     SelectedTable
 )
+from budgeting_app.utils.logging import CustomLoggerAdapter
 from budgeting_app.utils.tools import is_all_not_none
 
 
 class Canvas(QtWidgets.QWidget):
     drawing_enabled: bool
     image_data: ImageData
+    is_drawing_enabled: bool
     
     offset_x: float
     offset_y: float
@@ -26,6 +29,8 @@ class Canvas(QtWidgets.QWidget):
     
     tables: list[QTableF]
     table_info: TableInfo
+    
+    logger: logging.LoggerAdapter
 
     newTable = QtCore.pyqtSignal(QTableF)
     """
@@ -54,9 +59,12 @@ class Canvas(QtWidgets.QWidget):
     
     tableDeselected = QtCore.pyqtSignal()
 
-    def __init__(self, image_bytes: bytes, parent: QtWidgets.QWidget | None = None):
+    def __init__(self, image_bytes: bytes, is_drawing_enabled: bool, parent: QtWidgets.QWidget | None = None):
+        self.logger = CustomLoggerAdapter.getLogger('gui', className='Canvas')
+        self.logger.debug('Initializing Canvas with image_bytes=....')
+        
         super().__init__(parent)
-        self.is_drawing_enabled = True
+        self.is_drawing_enabled = is_drawing_enabled
         self.table_info = TableInfo(table_drawing_settings=DrawingSettings())
         self.offset_x = 0.0
         self.offset_y = 0.0
@@ -98,7 +106,6 @@ class Canvas(QtWidgets.QWidget):
     
     @image_bytes.setter
     def image_bytes(self, val: bytes) -> None:
-        print('Canvas.image_bytes.setter')
         self.__set_image(val)
     
     @drawing_enabled.setter
@@ -144,13 +151,13 @@ class Canvas(QtWidgets.QWidget):
             self.update()
     
     def __set_image(self, img_bytes: bytes) -> None:
-        print('Canvas.__set_image')
+        self.logger.debug('Setting image from img_bytes.')
         
         # Get PIL.Image object from bytes
         img = QtGui.QImage().fromData(QtCore.QByteArray(img_bytes))
         
         if getattr(self, 'image_data', None) is None:
-            
+            self.logger.debug(f'image_data doesn\'t exist. Creating new image_data with {img} and current_origin_pos={QtCore.QPointF(0.0, 0.0)}')
             # Add ImageData object to the self.images_data list
             self.image_data = ImageData(
                 original_image=img,
@@ -160,9 +167,12 @@ class Canvas(QtWidgets.QWidget):
             self.update_image_origin_pos()
             
         else:
+            self.logger.debug('image_data already exists.')
             
             # Update image content but keep the scale and origin position the same
+            self.logger.debug('Updating image_data.original_image value.')
             self.image_data.original_image = img
+            self.logger.debug(f'resizing {img} with image_data.current_scaled_image={self.image_data.current_scaled_image.size()} and updating image_data.current_scaled_image.')
             self.image_data.current_scaled_image = img.scaled(self.image_data.current_scaled_image.size())
             
         self.update()
@@ -180,23 +190,30 @@ class Canvas(QtWidgets.QWidget):
         dx = x - self.image_data.current_origin_pos.x()
         dy = y - self.image_data.current_origin_pos.y()
         
+        self.logger.debug(f'Updating image origin position from {self.image_data.current_origin_pos} to {QtCore.QPointF(x, y)}.')
         self.image_data.current_origin_pos = QtCore.QPointF(x, y)
         
+        self.logger.debug(f'Returning image origin displacement: dx={dx}, dy={dy}')
         return dx, dy
 
     def wheelEvent(self, event: QtGui.QWheelEvent):
         # Update image_data.current_size from event
+        
+        self.logger.debug(f'Got QtGui.QWheelEvent with angle delta y = {event.angleDelta().y()}')
+        
         current_image_size = self.image_data.current_scaled_image.size()
         if event.angleDelta().y() > 0:
             current_image_size *= 1.1
         else:
             current_image_size /= 1.1
+            
+        self.logger.debug(f'Updating image size from {self.image_data.current_scaled_image.size()} to {current_image_size}')
         
         # Update image from the 
         self.image_data.current_scaled_image = self.image_data.original_image.scaled(current_image_size, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
         self.update_image_origin_pos()
         self.tables, self.most_recent_scale_ratio = TableDrawingTool.update_tables_scale(self.tables, self.image_data, self.most_recent_scale_ratio)
-            
+        
         self.update()
         
     def resizeEvent(self, _: QtGui.QResizeEvent) -> None:
@@ -216,17 +233,24 @@ class Canvas(QtWidgets.QWidget):
                 self.table_info = TableDrawingTool.get_table_element_by_handle(event.position(), self.table_info)
         
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        
         if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            
+            self.logger.debug(f'Triggered with event.position={event.position()}')
 
+            self.logger.debug(f'self.is_drawing_enabled={self.is_drawing_enabled}')
             if not self.is_drawing_enabled:
+                self.logger.debug(f'self.table_info.selected_table={self.table_info.selected_table}')
                 # drawing is disabled
                 if self.table_info.selected_table is None:
                     # no table is selected - adjust position of the image based on the coursor movement?
-                    
+                    self.logger.debug(f'event.position={event.position()}')
                     dx = event.position().x() - self.end_pos.x()
                     dy = event.position().y() - self.end_pos.y()
+                    self.logger.debug(f'dx={dx}, dy={dy}')
                     self.offset_x += dx
                     self.offset_y += dy
+                    self.logger.debug(f'offset_x={self.offset_x}, offset_y={self.offset_y}')
                     self.tables = TableDrawingTool.move_tables(self.tables, dx, dy)
                     self.image_data.current_origin_pos += QtCore.QPointF(dx, dy)
 
@@ -260,7 +284,7 @@ class Canvas(QtWidgets.QWidget):
                 # If the button was released when using HAND_TOOL the behavior is different when we're holding
                 # an element of the table or not
                 if self.table_info.selected_table is None:
-                    # when we're not holding any element verify if we're clocking on the table or not
+                    # when we're not holding any element verify if we're clicking on the table or not
                     table_index = TableDrawingTool.get_table_by_line(event.position(), self.tables)
                     if table_index is not None:
                         self.table_info.selected_table = SelectedTable(
@@ -275,6 +299,8 @@ class Canvas(QtWidgets.QWidget):
                 else:
                     # when we were holding an element just set selected_table_element to None
                     self.table_info.selected_element = None
+                    
+            
 
             self.end_pos = None
             self.start_pos = None
@@ -312,6 +338,8 @@ class ImageViewer(QtWidgets.QWidget):
     tab_widget: QtWidgets.QTabWidget
     tabs: list[Canvas]
     
+    logger: logging.LoggerAdapter
+    
     newTable = QtCore.pyqtSignal(QTableF)
     """
     Args:\n
@@ -340,6 +368,10 @@ class ImageViewer(QtWidgets.QWidget):
     tableDeselected = QtCore.pyqtSignal()
     
     def __init__(self, parent: QtWidgets.QWidget | None = None):
+        
+        self.logger = CustomLoggerAdapter.getLogger('gui', className='ImageViewer')
+        self.logger.debug('Initializing ImageViewer.')
+        
         super(QtWidgets.QWidget, self).__init__(parent)
         
         self.tab_layout = QtWidgets.QVBoxLayout(self)
@@ -364,7 +396,9 @@ class ImageViewer(QtWidgets.QWidget):
     def current_tab(self, val: int) -> None:
         self.tab_widget.setCurrentIndex(val)
         
-    def set_images(self, image_bytes_list: list[bytes]) -> None:
+    def set_images(self, image_bytes_list: list[bytes], is_drawing_enabled: bool) -> None:
+        
+        self.logger.debug(f'Zipping image_bytes_list (len={len(image_bytes_list)}) and self.tabs (len={len(self.tabs)})')
         zipped = [
             (
                 image_bytes_list[i] if i < len(image_bytes_list) else None,
@@ -373,12 +407,17 @@ class ImageViewer(QtWidgets.QWidget):
             for i
             in range(max(len(image_bytes_list), len(self.tabs)))
         ]
+        __zipped = [("..." if b is not None else None, t) for b, t in zipped]
+        
+        self.logger.debug(f'Iterating over: {__zipped}')
+        
         for i, (img_bytes, tab) in enumerate(zipped):
             if tab is None:
                 # tab doesn't exist for given img bytes -> create new tab
+                self.logger.debug(f'{i}: {__zipped[i]} -> Create new tab.')
                 
                 # add tab to the widget and the list
-                self.tabs.append(Canvas(img_bytes))
+                self.tabs.append(Canvas(img_bytes, is_drawing_enabled))
                 self.tab_widget.addTab(self.tabs[i], str(i))
                 
                 # relay signals
@@ -390,12 +429,15 @@ class ImageViewer(QtWidgets.QWidget):
                 
             elif img_bytes is None:
                 # tab exists already but the image bytes is not given -> remove tab
+                self.logger.debug(f'{i}: {__zipped[i]} -> Remove tab.')
                 
                 self.tab_widget.removeTab(i)
                 self.tabs.pop(i)
                 
             else:
                 # tab exists and the image_bytes has been given, update the image in the tab
+                self.logger.debug(f'{i}: {__zipped[i]} -> Update tab image.')
+                
                 self.tabs[i].image_bytes = img_bytes
                 
                 
