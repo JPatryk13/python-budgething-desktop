@@ -7,7 +7,7 @@ from pdfplumber import page
 
 from budgeting_app.utils.types import TypedObservableDict
 
-BASE_IMAGE_RESOLUTION = 72
+BASE_IMAGE_RESOLUTION = 200
             
 
 @dataclass
@@ -24,6 +24,7 @@ class ExplicitLineData:
     uuid: str = field(init=False, default_factory=lambda: str(uuid4()))
     value: int | float
     orientation: Literal['vertical', 'horizontal']
+    is_part_of_table: bool = field(default=False)
 
 
 @dataclass
