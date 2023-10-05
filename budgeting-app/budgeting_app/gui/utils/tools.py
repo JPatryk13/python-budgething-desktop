@@ -25,11 +25,11 @@ def create_spinbox(
         container_widget_layout.addWidget(label)
 
     spinbox = QtWidgets.QSpinBox()
-    spinbox.setValue(_set)
-    spinbox.setMinimum(_min)
+    spinbox.setValue(int(_set))
+    spinbox.setMinimum(int(_min))
     if _max is not None:
-        spinbox.setMaximum(_max)
-    spinbox.setFixedWidth(_width)
+        spinbox.setMaximum(int(_max))
+    spinbox.setFixedWidth(int(_width))
     container_widget_layout.addWidget(spinbox)
 
     container_widget.setLayout(container_widget_layout)
@@ -180,6 +180,18 @@ class ExpandableSpinBoxList:
         
         self._create_main_container()
         self.button.clicked.connect(self.__add_sbox)
+     
+    def values_from_list(self, values: list[dict[Literal['uuid', 'value'], str | int]]) -> None:
+        # set all container widgets to delete later
+        for exisiting_wrapper in self.sbox_list:
+            exisiting_wrapper['container_widget'].deleteLater()
+            
+        # empty the list
+        self.sbox_list = []
+        
+        # add new ones from the list
+        for val in values:
+            self.__add_sbox(**val)
         
     def __sbox_val_changed(self, sbox_wrapper: QSpinBoxWrapper) -> None:
         self.update_value(sbox_wrapper['value_uuid'], sbox_wrapper['sbox'].value())
@@ -192,7 +204,12 @@ class ExpandableSpinBoxList:
         layout.addWidget(self.button)
         self.main_container.setLayout(layout)
         
-    def __add_sbox(self) -> None:
+    def __add_sbox(
+        self,
+        *,
+        uuid: int | None = None,
+        value: str | None = None
+    ) -> None:
         # check if the callables were given
         if not is_all_not_none(
             getattr(self, 'add_value', None),
@@ -204,14 +221,14 @@ class ExpandableSpinBoxList:
         # create spin box
         sbox_container, sbox = create_spinbox(
             self._min,
-            self._set,
+            self._set if value is None else value,
             _max=self._max,
             _width=self.width
         )
         sbox_wrapper: self.QSpinBoxWrapper = {
             'sbox': sbox,
             'container_widget': sbox_container,
-            'value_uuid': self.add_value(self._set)
+            'value_uuid': self.add_value(self._set) if uuid is None else uuid
         }
         sbox.valueChanged.connect(lambda: self.__sbox_val_changed(sbox_wrapper))
         # create close button
