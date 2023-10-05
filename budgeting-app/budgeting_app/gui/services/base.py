@@ -1,47 +1,59 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import enum
 import sys
 from typing import Any
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 
+from budgeting_app.utils.logging import CustomLoggerAdapter
+
+
+@dataclass
+class ServiceRequirement:
+    attr_name: str
+    is_callable: bool
+    properties: list[str]
+
 
 class ServiceManager:
     """Bridge between services to avoid circular imports and code duplication.
     """
     
+    logger = CustomLoggerAdapter.getLogger('gui', className='ServiceManager')
     
-    class __NoServicesException(Exception):
+    class __NoServicesException:
         """Raised when `self.services` is empty
         """
         def __init__(self, *args: object) -> None:
-            super().__init__('Services must be added prior to any operations. It can be done via add_services() method.', *args)
+            ServiceManager.logger.critical('Services must be added prior to any operations. It can be done via add_services() method.', *args)
     
     
-    class __MissingRequiredServicesException(Exception):
+    class __MissingRequiredServicesException:
         """Raised when any of the required services is missing
         """
         def __init__(self, expected: list[str], actual: list[str], *args: object) -> None:
-            super().__init__(f'Required services are: {expected}. Got {actual} instead.', *args)
+            ServiceManager.logger.critical(f'Required services are: {expected}. Got {actual} instead.', *args)
     
     
-    class __ServiceMethodNotFound(Exception):
+    class __ServiceMethodNotFound:
         """Raised when the given service doesn't have the requested method
         """
         def __init__(self, service_name: 'ServiceManager.ServiceName', method_name: str, *args: object) -> None:
-            super().__init__(f'Service {service_name.value} doesn\'t have a method {method_name}.', *args)
+            ServiceManager.logger.critical(f'Service {service_name.value} doesn\'t have a method {method_name}.', *args)
             
-    class __InvalidKwargs(Exception):
+    class __InvalidKwargs:
         """Raised when the given service attribute does not accept given kwargs
         """
         def __init__(self, service_name: 'ServiceManager.ServiceName', method_name: str, _kwargs: dict, *args: object) -> None:
-            super().__init__(f'{service_name.value}\'s method {method_name} doesn\'t accept kwargs, {_kwargs}', *args)
+            ServiceManager.logger.critical(f'{service_name.value}\'s method {method_name} doesn\'t accept kwargs, {_kwargs}', *args)
     
     
     class ServiceName(enum.Enum):
         ADD_PROFILE_FORM = 'AddProfileForm'
         ADD_DATA_FROM_FILE = 'AddDataFromFile'
         TABLE_EXTRACTOR = 'TableExtractor'
+        CSV_TABLE_EXTRACTOR = 'CSVTableExtractor'
+        JSON_TABLE_EXTRACTOR = 'JSONTableExtractor'
     
     
     @dataclass
@@ -95,15 +107,26 @@ class ServiceManager:
         Raises:
             __NoServicesException
         """
+        
+        cls.logger.debug(f'Attempting to run \'{service_name}\'.')
+        
         if cls.has_services():
             for i, serv in enumerate(cls.services):
                 
                 if serv.name == service_name and not serv.is_active:
+                    
+                    cls.logger.info(f'Starting {serv.name} service.')
                     serv.obj.show()
+                    
                     cls.services[i].is_active = True
+                    
                 elif serv.name != service_name and serv.is_active:
+                    
+                    cls.logger.info(f'Stopping {serv.name} service.')
                     serv.obj.close()
+                    
                     cls.services[i].is_active = False
+                    
         else:
             cls.__NoServicesException()
 
@@ -130,17 +153,29 @@ class ServiceManager:
             __ServiceMethodNotFound\n
             __NoServicesException
         """
+        
+        if call:
+            cls.logger.debug(f'Attempting to call {service_name.value}.{attr_name} with kwargs=....')
+        else:
+            cls.logger.debug(f'Attempting to get \'{attr_name}\' attribute from {service_name.value}.')
+            
         if cls.has_services():
             # service manager has all required services added
             for i, serv in enumerate(cls.services):
                 if serv.name == service_name:
                     # found match
+                    cls.logger.debug('Service found.')
+                    
                     service_attr = getattr(cls.services[i].obj, attr_name, None)
                     if service_attr is not None:
                         # service attribute exists
+                        cls.logger.debug('Service attribute exists.')
+                        
                         if call:
                             try:
-                                return service_attr(**kwargs)
+                                val = service_attr(**kwargs)
+                                cls.logger.debug('Call successful.')
+                                return val
                             except:
                                 cls.__InvalidKwargs(service_name, attr_name, kwargs)
                         else:
@@ -157,11 +192,33 @@ class ServiceManager:
                 return serv.is_active
 
     @classmethod        
-    def get_service_obj(cls, service_name: ServiceName) -> None:
+    def get_service_obj(cls, service_name: ServiceName) -> QtWidgets.QMainWindow | None:
+        cls.logger.debug(f'Requested service: {service_name}, {type(service_name)}')
         for serv in cls.services:
-            if serv.name == service_name:
+            if serv.name.value == service_name.value:
+                cls.logger.debug(f'Found match: {serv}')
                 return serv.obj
-            
+        else:
+            cls.logger.warning(f'Couldn\'t find a service with a name: {service_name}. Existing services have names: {[s.name for s in cls.services]}')
+    
+    @classmethod
+    def get_service_requirements(cls, service_name: ServiceName) -> list[ServiceRequirement]:
+        """Extracts service_requirements property from the requested service. Each object of the
+        ServiceRequirement class describes which attribute is to be called, whether it's a callable
+        or not and what arguments need to be supplied. That is enough information to programatically 
+        run a function of the service. The function can for example be an essential part of the method
+
+        Args:
+            service_name (ServiceName): ServiceName member corresponding to the service name
+
+        Returns:
+            list[ServiceRequirement]: list of ServiceRequirement objects from the requested service
+        """
+        return getattr(
+            cls.get_service_obj(service_name),
+            'service_requirements',
+            []
+        )
 
 class MainWindow(QtWidgets.QMainWindow):
     
@@ -179,6 +236,8 @@ class MainWindow(QtWidgets.QMainWindow):
     add_data_from_file_action: QtGui.QAction
     view_data_action: QtGui.QAction
     about_action: QtGui.QAction
+    
+    service_requirements: list[ServiceRequirement]
 
     def __init__(self, parent: Any | None = None):
         super().__init__(parent)
