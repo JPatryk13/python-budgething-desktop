@@ -1,0 +1,42 @@
+version: 1
+
+formatters:
+  cls:
+    (): budgeting_app.utils.logging._CustomFormatter
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: cls
+    stream: ext://sys.stdout
+
+loggers:
+  app:
+    level: DEBUG
+    handlers: [console]
+    propagate: no
+
+  gui:
+    level: DEBUG
+    handlers: [console]
+    propagate: no
+
+  pdf_table_reader:
+    level: DEBUG
+    handlers: [console]
+    propagate: no
+
+  transaction_management:
+    level: DEBUG
+    handlers: [console]
+    propagate: no
+
+  integration_tests:
+    level: INFO
+    handlers: [console]
+    propagate: no
+
+root:
+  level: DEBUG
+  handlers: [console]
