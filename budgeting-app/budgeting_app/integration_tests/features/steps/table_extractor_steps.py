@@ -14,7 +14,6 @@ from budgeting_app.pdf_table_reader.core.entities.models import ImageWrapper
 
 @when('I select the "{tool_name}"')
 def step_impl(context: _context, tool_name: str) -> None:
-    context.logger.info(f'Running \'I select the "{tool_name}"\'')
     
     # check if we are using this step in the right context
     is_correct_service_used(context, ServiceManager.ServiceName.TABLE_EXTRACTOR)
@@ -40,7 +39,6 @@ def step_impl(context: _context, tool_name: str) -> None:
         
 @when('I move the mouse scroll "{direction}" within "{widget_name}"')
 def step_impl(context: _context, direction: str, widget_name: str) -> None:
-    context.logger.info(f'Running \'I move the mouse scroll "{direction}" within "{widget_name}"\'')
     
     # check if the widget name is valid
     if context.current_service_name == ServiceManager.ServiceName.TABLE_EXTRACTOR:
@@ -84,9 +82,6 @@ def step_impl(
     start_pos_identifier: str,
     translation_identifier: str
 ) -> None:
-    
-    context.logger.info(f'I hold "{button_identifier}" and drag the coursor within ' \
-        f'"{widget_name}" from "{start_pos_identifier}" "{translation_identifier}"\'')
     
     # check if we are using this step in the right context
     is_correct_service_used(context, ServiceManager.ServiceName.TABLE_EXTRACTOR)
@@ -176,7 +171,6 @@ def step_impl(
     
 @when('I release the "{button_identifier}"')
 def step_impl(context: _context, button_identifier: str) -> None:
-    context.logger.info(f'Running \'I release the "{button_identifier}"\'')
     
     # check if we are using this step in the right context
     is_correct_service_used(context, ServiceManager.ServiceName.TABLE_EXTRACTOR)
@@ -220,7 +214,6 @@ def step_impl(context: _context, button_identifier: str) -> None:
     
 @then('the number of displayed tabs is {tab_count:d}')
 def step_impl(context: _context, tab_count: int):
-    context.logger.info(f'Running \'the number of displayed tabs is {tab_count}\'')
     
     # check if we are using this step in the right context
     is_correct_service_used(context, ServiceManager.ServiceName.TABLE_EXTRACTOR)
@@ -230,7 +223,6 @@ def step_impl(context: _context, tab_count: int):
 
 @then('I can see my data in the table widget')
 def step_impl(context: _context):
-    context.logger.info(f'Running \'I can see my data in the table widget\'')
     
     # check if we are using this step in the right context
     is_correct_service_used(context, ServiceManager.ServiceName.TABLE_EXTRACTOR)
@@ -261,7 +253,6 @@ def step_impl(context: _context):
         
 @then('the "{tool_name}" is selected')
 def step_impl(context: _context, tool_name: str) -> None:
-    context.logger.info(f'Running \'the "{tool_name}" is selected\'')
     
     # check if we are using this step in the right context
     is_correct_service_used(context, ServiceManager.ServiceName.TABLE_EXTRACTOR)
@@ -300,7 +291,6 @@ def step_impl(context: _context, tool_name: str) -> None:
 
 @then('the image "{image_behavior}"')
 def step_impl(context: _context, image_behavior: str) -> None:
-    context.logger.info(f'Running \'The image "{image_behavior}"\'')
     
     # check if we are using this step in the right context
     is_correct_service_used(context, ServiceManager.ServiceName.TABLE_EXTRACTOR)

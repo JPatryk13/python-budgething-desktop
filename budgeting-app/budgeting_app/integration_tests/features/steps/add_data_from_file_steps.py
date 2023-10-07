@@ -4,12 +4,10 @@ from PyQt6 import QtCore, QtGui
 from budgeting_app.integration_tests.features.utils import _context, get_qwindow_centre
 
 
-
 # region: When
 
 @when('I {action} the file')
 def step_impl(context: _context, action: str) -> None:
-    context.logger.info(f'Running \'I {action} the file\'')
     
     # create mime data object from the file
     mime_data = QtCore.QMimeData()
@@ -60,7 +58,6 @@ def step_impl(context: _context, action: str) -> None:
 @then('I see that it is {is_accepted} filetype')
 @then('The file is {is_accepted}')
 def step_impl(context: _context, is_accepted: str) -> None:
-    context.logger.info(f'Running \'I see that it is {is_accepted} filetype\' or \'The file is {is_accepted}\'')
     
     _is_accepted = 'not' not in is_accepted
     assert context.event.isAccepted() == _is_accepted, f'The event was supposed to be {"" if _is_accepted else "not "}accepted, however, the opposite happened.'
