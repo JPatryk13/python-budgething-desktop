@@ -114,10 +114,12 @@ def is_correct_service_used(
         29/09/2023: `expected_service_names` can be `list[ServiceManager.ServiceName]`. The function the will
         check for match with eather member of the list.
     """
+    # if expected_service_names is not a list convert it to one
     if not isinstance(expected_service_names, list):
         expected_service_names = [expected_service_names]
         
     if context.current_service_name in expected_service_names:
+        # context.current_service_name has a correct value
         
         expected_service_objects_types = tuple([type(context.service_manager_cls.get_service_obj(exp)) for exp in expected_service_names])
         
@@ -139,7 +141,7 @@ def is_correct_service_used(
     else:
         
         err_msg = f'Service name must be a member of {expected_service_names}. ' \
-            'Got {context.current_service_name} instead.'
+            f'Got {context.current_service_name} instead.'
         
         context.logger.error(err_msg)
         
