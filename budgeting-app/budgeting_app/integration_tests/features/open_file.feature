@@ -39,7 +39,7 @@ Feature: Drag and drop a file
         And I have a valid <filename> file
         When I drag and drop the file
         Then The file is <is_accepted>
-        And <service_name> is opened
+        And "<service_name>" is opened
         Examples:
             | filename    | is_accepted | service_name       |
             | sample.pdf  | accepted    | TableExtractor     |
@@ -54,7 +54,7 @@ Feature: Drag and drop a file
             | D | E | F |
             | G | H | I |
         When I drag and drop the file
-        Then TableExtractor is opened
+        Then "TableExtractor" is opened
         And the number of displayed tabs is 1
         And I can see my data in the table widget
 
@@ -69,7 +69,7 @@ Feature: Drag and drop a file
             | 4 | 5 | 6 |
             | 7 | 8 | 9 |
         When I drag and drop the file
-        Then TableExtractor is opened
+        Then "TableExtractor" is opened
         And the number of displayed tabs is 1
         And I can see my data in the table widget
 
@@ -87,7 +87,7 @@ Feature: Drag and drop a file
             | X4 | X5 | X6 |
             | X7 | X8 | X9 |
         When I drag and drop the file
-        Then TableExtractor is opened
+        Then "TableExtractor" is opened
         And the number of displayed tabs is 2
         And I can see my data in the table widget
 

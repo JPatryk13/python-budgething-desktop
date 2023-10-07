@@ -10,7 +10,6 @@ from budgeting_app.pdf_table_reader.core.usecases.pdf_reader import PDFReader
 
 @given('I have the "{service_name}" window open')
 def step_impl(context: _context, service_name: str) -> None:
-    context.logger.info(f'Running \'I have the "{service_name}" window open\'')
     
     context.current_service_window_obj, context.current_service_name = get_service_by_name(context, service_name)
     
@@ -40,7 +39,6 @@ def step_impl(context: _context, service_name: str) -> None:
 
 @given('I have a valid {filename} file')
 def step_impl(context: _context, filename: str) -> None:
-    context.logger.info(f'Running \'I have a valid {filename} file\'')
     
     # create str filepath from the filename
     context.filepath = str(Path(__file__).parent.parent.parent / 'data' / filename)
@@ -53,7 +51,6 @@ def step_impl(context: _context, filename: str) -> None:
         
 @given('the data are')
 def step_impl(context: _context) -> None:
-    context.logger.info(f'Running \'the data are {context.table}\'')
     
     # Convert model.Table object to a simple list of lists
     table: model.Table = context.table
@@ -65,12 +62,12 @@ def step_impl(context: _context) -> None:
 
 # region: Then
 
-@then('{service_name} is opened')
-def step_impl(context: _context, service_name: str) -> None:
-    context.logger.info(f'Running \'{service_name} is opened\'')
+@then('"{service_name_str}" is opened')
+@then('"{service_name_str}" is open')
+def step_impl(context: _context, service_name_str: str) -> None:
     
-    window_obj, _ = get_service_by_name(service_name)
+    context.current_service_window_obj, context.current_service_name = get_service_by_name(context, service_name_str)
     
-    assert window_obj.isVisible()
+    assert context.current_service_window_obj.isVisible()
 
 # endregion
