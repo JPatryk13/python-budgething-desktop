@@ -6,7 +6,7 @@ from pdfplumber import open as pdf_open
 from PIL import Image
 
 from budgeting_app.pdf_table_reader.core.usecases.table_detector_workspace import TableDetectorWorkspace
-from budgeting_app.pdf_table_reader.core.entities.models import PDFFileWrapper, PDFPageWrapper, BASE_IMAGE_RESOLUTION
+from budgeting_app.pdf_table_reader.core.entities.models import PDFFileWrapper, PDFPageWrapper, BASE_IMAGE_RESOLUTION, ExplicitLineData
 
 
 class TestTableDetectorWorkspace(unittest.TestCase):
@@ -20,16 +20,15 @@ class TestTableDetectorWorkspace(unittest.TestCase):
         
         # Elements only added here to distinguish between pages
         self.page0 = PDFPageWrapper(
-            page=self.multiple_pages_sample_pdf_file.pages[0],
-            table_settings={'explicit_vertical_lines': []}
+            page=self.multiple_pages_sample_pdf_file.pages[0]
         )
         self.page1 = PDFPageWrapper(
             page=self.multiple_pages_sample_pdf_file.pages[1],
-            table_settings={'explicit_vertical_lines': [1]}
+            explicit_lines=[ExplicitLineData(1, 'vertical')]
         )
         self.page2 = PDFPageWrapper(
             page=self.multiple_pages_sample_pdf_file.pages[2],
-            table_settings={'explicit_vertical_lines': [1, 2]}
+            explicit_lines=[ExplicitLineData(1, 'vertical'), ExplicitLineData(2, 'vertical')]
         )
         self.pdf_file_wrapper0 = PDFFileWrapper(pages=[self.page0, self.page1, self.page2])
         self.table_detector_workspace = TableDetectorWorkspace(self.pdf_file_wrapper0)
@@ -41,11 +40,20 @@ class TestTableDetectorWorkspace(unittest.TestCase):
         # Data to use
         self.page3 = PDFPageWrapper(
             page=self.single_page_sample_pdf_file.pages[0],
-            table_settings={'explicit_vertical_lines': [1, 2, 3]}
+            explicit_lines=[
+                ExplicitLineData(1, 'vertical'),
+                ExplicitLineData(2, 'vertical'),
+                ExplicitLineData(3, 'vertical')
+            ]
         )
         self.page4 = PDFPageWrapper(
             page=self.single_page_sample_pdf_file.pages[0],
-            table_settings={'explicit_vertical_lines': [1, 2, 3, 4]}
+            explicit_lines=[
+                ExplicitLineData(1, 'vertical'),
+                ExplicitLineData(2, 'vertical'),
+                ExplicitLineData(3, 'vertical'),
+                ExplicitLineData(4, 'vertical')
+            ]
         )
         self.pdf_file_wrapper1 = PDFFileWrapper(pages=[self.page3, self.page4])
         
@@ -431,8 +439,8 @@ class TestTableDetectorWorkspace(unittest.TestCase):
     ####################################
     
     def test__get_page_image_bytes(self) -> None:
-        expected_img = self.page0.page.to_image(200).original
-        actual_bytes = self.table_detector_workspace._get_pages_images_bytes([0], 200)
+        expected_img = self.page0.page.to_image(BASE_IMAGE_RESOLUTION).original
+        actual_bytes = self.table_detector_workspace._get_pages_images_bytes([0], BASE_IMAGE_RESOLUTION)
         actual_img = list(map(lambda b: Image.open(io.BytesIO(b)), actual_bytes))
         self.assertTrue(isinstance(actual_bytes, list))
         self.assertEqual(len(actual_bytes), 1)
@@ -445,47 +453,66 @@ class TestTableDetectorWorkspace(unittest.TestCase):
         actual_bytes_list = self.table_detector_workspace._get_pages_images_bytes([0, 1], resolution)
         actual_img_list = [Image.open(io.BytesIO(actual_bytes_list[0])), Image.open(io.BytesIO(actual_bytes_list[1]))]
         
+        # Check the type and size of actual_bytes_list
         self.assertTrue(isinstance(actual_bytes_list, list))
         self.assertEqual(len(actual_bytes_list), 2)
         self.assertTrue(isinstance(actual_bytes_list[0], bytes) and isinstance(actual_bytes_list[1], bytes))
+        
+        # Check the properties of each img
         self.assertEqual(expected_img_list[0].mode, actual_img_list[0].mode)
         self.assertEqual(expected_img_list[0].size, actual_img_list[0].size)
         self.assertEqual(expected_img_list[1].mode, actual_img_list[1].mode)
         self.assertEqual(expected_img_list[1].size, actual_img_list[1].size)
     
     def test_set_pdf_file_image_one_page_image(self) -> None:
-        expected = self.table_detector_workspace.pdf_file.pages[0].page.to_image().original
+        expected = self.table_detector_workspace.pdf_file.pages[0].page.to_image(BASE_IMAGE_RESOLUTION).original
         self.table_detector_workspace.set_pdf_file_image(page_indices=[0])
+        
+        # check if the image has been created correctly
         self.assertTrue(self.table_detector_workspace.pdf_file.image is not None)
         self.assertEqual(len(self.table_detector_workspace.pdf_file.image.image_bytes), 1)
-        actual_img = Image.open(io.BytesIO(self.table_detector_workspace.pdf_file.image.image_bytes[0]))
-        self.assertEqual(expected.mode, actual_img.mode)
-        self.assertEqual(expected.size, actual_img.size)
         self.assertEqual(self.table_detector_workspace.pdf_file.image.page_indices, [0])
         self.assertEqual(self.table_detector_workspace.pdf_file.image.resolution, BASE_IMAGE_RESOLUTION)
         self.assertEqual(self.table_detector_workspace.pdf_file.image._format, 'PNG')
         self.assertEqual(self.table_detector_workspace.pdf_file.image.antialias, False)
+        
+        actual_img = Image.open(io.BytesIO(self.table_detector_workspace.pdf_file.image.image_bytes[0]))
+        
+        # check the properties of the image
+        self.assertEqual(expected.mode, actual_img.mode)
+        self.assertEqual(expected.size, actual_img.size)
 
     def test_set_pdf_file_image_all_pages(self) -> None:
-        expected = [p.page.to_image().original for p in self.table_detector_workspace.pdf_file.pages]
+        expected = [p.page.to_image(BASE_IMAGE_RESOLUTION).original for p in self.table_detector_workspace.pdf_file.pages]
         self.table_detector_workspace.set_pdf_file_image()
+        
+        # check if the images has been created correctly
         self.assertTrue(self.table_detector_workspace.pdf_file.image is not None)
         self.assertEqual(len(self.table_detector_workspace.pdf_file.image.image_bytes), 3)
-        actual_img = [Image.open(io.BytesIO(b)) for b in self.table_detector_workspace.pdf_file.image.image_bytes]
-        for e, a in zip(expected, actual_img):
-            self.assertEqual(e.mode, a.mode)
-            self.assertEqual(e.size, a.size)
         self.assertEqual(self.table_detector_workspace.pdf_file.image.page_indices, 'all')
         self.assertEqual(self.table_detector_workspace.pdf_file.image.resolution, BASE_IMAGE_RESOLUTION)
         self.assertEqual(self.table_detector_workspace.pdf_file.image._format, 'PNG')
         self.assertEqual(self.table_detector_workspace.pdf_file.image.antialias, False)
+        
+        actual_img = [Image.open(io.BytesIO(b)) for b in self.table_detector_workspace.pdf_file.image.image_bytes]
+        
+        # check the properties of each image
+        for e, a in zip(expected, actual_img):
+            self.assertEqual(e.mode, a.mode)
+            self.assertEqual(e.size, a.size)
+        
 
     def test_set_pdf_file_image_high_resolution(self) -> None:
         expected = self.table_detector_workspace.pdf_file.pages[0].page.to_image(1000).original
         self.table_detector_workspace.set_pdf_file_image(page_indices=[0], resolution=1000)
+        
+        # check if the image has been created correctly
         self.assertTrue(self.table_detector_workspace.pdf_file.image is not None)
         self.assertEqual(len(self.table_detector_workspace.pdf_file.image.image_bytes), 1)
+        
         actual_img = Image.open(io.BytesIO(self.table_detector_workspace.pdf_file.image.image_bytes[0]))
+        
+        # check the properties of the image
         self.assertEqual(expected.mode, actual_img.mode)
         self.assertEqual(expected.size, actual_img.size)
         self.assertEqual(self.table_detector_workspace.pdf_file.image.resolution, 1000)
@@ -508,7 +535,7 @@ class TestTableDetectorWorkspace(unittest.TestCase):
         
     def test_add_line_that_exists(self) -> None:
         pos = 100
-        self.table_detector_workspace.set_pdf_file_image().add_line(pos, 'horizontal', 0).add_line(pos, 'horizontal', 0)
+        self.table_detector_workspace.set_pdf_file_image().add_line(pos, 'horizontal', 0)[0].add_line(pos, 'horizontal', 0)
         self.assertIn(pos, self.table_detector_workspace.pdf_file.pages[0].table_settings['explicit_horizontal_lines'])
         self.assertEqual(len(list(filter(lambda p: p == pos, self.table_detector_workspace.pdf_file.pages[0].table_settings['explicit_horizontal_lines']))), 1)
         
