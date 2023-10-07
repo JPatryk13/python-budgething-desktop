@@ -1,108 +1,85 @@
 import unittest
 from dataclasses import asdict
 
-from PyQt6.QtCore import (
-    QPointF,
-    QRectF,
-    QLineF,
-    QSizeF,
-    Qt
-)
-from PyQt6.QtWidgets import (
-    QApplication,
-    QWidget
-)
-from PyQt6.QtGui import (
-    QPainter,
-    QImage
-)
+from PyQt6 import QtCore
 
 from budgeting_app.gui.services.table_extractor.image_tools import (
     DrawingSettings,
     TableInfo,
-    Tools,
     AddMode,
     QTableF,
     SelectedElement,
     SelectedTable,
-    ImageData,
     TableDrawingTool,
-    DEFAULT_PEN,
-    DEFAULT_HANDLES_PEN,
-    SELECTION_HANDLE_RADIUS,
     MIN_COLUMN_WIDTH,
     MIN_ROW_HEIGHT,
-    DEFAULT_TOOL,
-    DEFAULT_ADD_COLUMN_MODE,
-    DEFAULT_ADD_ROW_MODE,
-    DEFAULT_ZOOM_FACTOR,
 )
 from budgeting_app.gui.utils.tools import PyQtAssert
 
 class TestImageTools(unittest.TestCase):
     def setUp(self) -> None:
-        self.boundary_0x0y100w150h = QRectF(QPointF(0.0, 0.0), QPointF(100.0, 150.0))
+        self.boundary_0x0y100w150h = QtCore.QRectF(QtCore.QPointF(0.0, 0.0), QtCore.QPointF(100.0, 150.0))
         self.table_2c3r = QTableF(
             boundary=self.boundary_0x0y100w150h,
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0))],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0))
             ]
         )
         self.table_3c2r = QTableF(
             boundary=self.boundary_0x0y100w150h,
             vertical_separators=[
-                QLineF(QPointF(100/3, 0.0), QPointF(100/3, 150.0)),
-                QLineF(QPointF(200/3, 0.0), QPointF(200/3, 150.0))
+                QtCore.QLineF(QtCore.QPointF(100/3, 0.0), QtCore.QPointF(100/3, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(200/3, 0.0), QtCore.QPointF(200/3, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
             ]
         )
         self.table_4c4r = QTableF(
             boundary=self.boundary_0x0y100w150h,
             vertical_separators=[
-                QLineF(QPointF(25.0, 0.0), QPointF(25.0, 150.0)),
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                QLineF(QPointF(75.0, 0.0), QPointF(75.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 37.5), QPointF(100.0, 37.5)),
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
-                QLineF(QPointF(0.0, 112.5), QPointF(100.0, 112.5))
+                QtCore.QLineF(QtCore.QPointF(0.0, 37.5), QtCore.QPointF(100.0, 37.5)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 112.5), QtCore.QPointF(100.0, 112.5))
             ]
         )
-        self.boundary_120x35y100w150h = QRectF(QPointF(120.0, 35.0), QPointF(220.0, 185.0))
+        self.boundary_120x35y100w150h = QtCore.QRectF(QtCore.QPointF(120.0, 35.0), QtCore.QPointF(220.0, 185.0))
         self.table_2c3r120x35y = QTableF(
             boundary=self.boundary_120x35y100w150h,
-            vertical_separators=[QLineF(QPointF(120.0, 35.0), QPointF(120.0, 185.0))],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(120.0, 35.0), QtCore.QPointF(120.0, 185.0))],
             horizontal_separators=[
-                QLineF(QPointF(120.0, 85.0), QPointF(220.0, 85.0)),
-                QLineF(QPointF(120.0, 135.0), QPointF(220.0, 135.0))
+                QtCore.QLineF(QtCore.QPointF(120.0, 85.0), QtCore.QPointF(220.0, 85.0)),
+                QtCore.QLineF(QtCore.QPointF(120.0, 135.0), QtCore.QPointF(220.0, 135.0))
             ]
         )
-        self.boundary_105x35y100w150h = QRectF(QPointF(105.0, 35.0), QPointF(205.0, 185.0))
+        self.boundary_105x35y100w150h = QtCore.QRectF(QtCore.QPointF(105.0, 35.0), QtCore.QPointF(205.0, 185.0))
         self.table_2c3r105x35y = QTableF(
             boundary=self.boundary_105x35y100w150h,
-            vertical_separators=[QLineF(QPointF(105.0, 35.0), QPointF(105.0, 185.0))],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(105.0, 35.0), QtCore.QPointF(105.0, 185.0))],
             horizontal_separators=[
-                QLineF(QPointF(105.0, 85.0), QPointF(205.0, 85.0)),
-                QLineF(QPointF(105.0, 135.0), QPointF(205.0, 135.0))
+                QtCore.QLineF(QtCore.QPointF(105.0, 85.0), QtCore.QPointF(205.0, 85.0)),
+                QtCore.QLineF(QtCore.QPointF(105.0, 135.0), QtCore.QPointF(205.0, 135.0))
             ]
         )
         self.table_2c2r100x200y100w100h = QTableF(
-            boundary=QRectF(QPointF(100.0, 200.0), QPointF(200.0, 300.0)),
-            vertical_separators=[QLineF(QPointF(150.0, 200.0), QPointF(150.0, 300.0))],
-            horizontal_separators=[QLineF(QPointF(100.0, 250.0), QPointF(200.0, 250.0))]
+            boundary=QtCore.QRectF(QtCore.QPointF(100.0, 200.0), QtCore.QPointF(200.0, 300.0)),
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(150.0, 200.0), QtCore.QPointF(150.0, 300.0))],
+            horizontal_separators=[QtCore.QLineF(QtCore.QPointF(100.0, 250.0), QtCore.QPointF(200.0, 250.0))]
         )
         self.table_2c2r250x350y100w100h = QTableF(
-            boundary=QRectF(QPointF(250.0, 350.0), QPointF(350.0, 450.0)),
-            vertical_separators=[QLineF(QPointF(300.0, 350.0), QPointF(300.0, 450.0))],
-            horizontal_separators=[QLineF(QPointF(250.0, 400.0), QPointF(350.0, 400.0))]
+            boundary=QtCore.QRectF(QtCore.QPointF(250.0, 350.0), QtCore.QPointF(350.0, 450.0)),
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(300.0, 350.0), QtCore.QPointF(300.0, 450.0))],
+            horizontal_separators=[QtCore.QLineF(QtCore.QPointF(250.0, 400.0), QtCore.QPointF(350.0, 400.0))]
         )
         # that boundary surrounds the two tables above
-        self.boundary_80x100y400w500h = QRectF(QPointF(80.0, 100.0), QPointF(480.0, 600.0))
+        self.boundary_80x100y400w500h = QtCore.QRectF(QtCore.QPointF(80.0, 100.0), QtCore.QPointF(480.0, 600.0))
 
     #
     # min_table_width
@@ -173,7 +150,7 @@ class TestImageTools(unittest.TestCase):
         PyQtAssert.equalLines(expected[0], actual[0])
 
     def test__get_lines_x_axis_with_distribution(self) -> None:
-        expected = [QLineF(QPointF(20.0, 0.0), QPointF(20.0, 150.0))]
+        expected = [QtCore.QLineF(QtCore.QPointF(20.0, 0.0), QtCore.QPointF(20.0, 150.0))]
         actual = TableDrawingTool._get_lines(
             boundary=self.boundary_0x0y100w150h,
             div_count=2,
@@ -184,7 +161,7 @@ class TestImageTools(unittest.TestCase):
         PyQtAssert.equalLines(expected[0], actual[0])
         
     def test__get_lines_x_axis_with_distribution_boundary_not_at_origin(self) -> None:
-        expected = [QLineF(QPointF(125.0, 35.0), QPointF(125.0, 185.0))]
+        expected = [QtCore.QLineF(QtCore.QPointF(125.0, 35.0), QtCore.QPointF(125.0, 185.0))]
         actual = TableDrawingTool._get_lines(
             boundary=self.boundary_105x35y100w150h,
             div_count=2,
@@ -205,8 +182,8 @@ class TestImageTools(unittest.TestCase):
 
     def test__get_lines_y_axis_with_distribution(self) -> None:
         expected = [
-            QLineF(QPointF(0.0, 40.0), QPointF(100.0, 40.0)),
-            QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0))
+            QtCore.QLineF(QtCore.QPointF(0.0, 40.0), QtCore.QPointF(100.0, 40.0)),
+            QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0))
         ]
         actual = TableDrawingTool._get_lines(
             boundary=self.boundary_0x0y100w150h,
@@ -218,8 +195,8 @@ class TestImageTools(unittest.TestCase):
         
     def test__get_lines_y_axis_with_distribution_boundary_not_at_origin(self) -> None:
         expected = [
-            QLineF(QPointF(105.0, 75.0), QPointF(205.0, 75.0)),
-            QLineF(QPointF(105.0, 135.0), QPointF(205.0, 135.0))
+            QtCore.QLineF(QtCore.QPointF(105.0, 75.0), QtCore.QPointF(205.0, 75.0)),
+            QtCore.QLineF(QtCore.QPointF(105.0, 135.0), QtCore.QPointF(205.0, 135.0))
         ]
         actual = TableDrawingTool._get_lines(
             boundary=self.boundary_105x35y100w150h,
@@ -243,7 +220,7 @@ class TestImageTools(unittest.TestCase):
         PyQtAssert.equalLines(expected[0], actual[0])
 
     def test__get_vlines_with_distribution(self) -> None:
-        expected = [QLineF(QPointF(20.0, 0.0), QPointF(20.0, 150.0))]
+        expected = [QtCore.QLineF(QtCore.QPointF(20.0, 0.0), QtCore.QPointF(20.0, 150.0))]
         actual = TableDrawingTool._get_vlines(
             boundary=self.boundary_0x0y100w150h,
             col_count=2,
@@ -265,10 +242,10 @@ class TestImageTools(unittest.TestCase):
         expected = [0.2]
         actual = TableDrawingTool._get_lines_distribution(QTableF(
             boundary=self.boundary_0x0y100w150h,
-            vertical_separators=[QLineF(QPointF(20.0, 0.0), QPointF(20.0, 150.0))],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(20.0, 0.0), QtCore.QPointF(20.0, 150.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0))
             ]
         ), 'x')
         self.assertEqual(expected, actual)
@@ -277,10 +254,10 @@ class TestImageTools(unittest.TestCase):
         expected = [0.2]
         actual = TableDrawingTool._get_lines_distribution(QTableF(
             boundary=self.boundary_105x35y100w150h,
-            vertical_separators=[QLineF(QPointF(20.0, 0.0), QPointF(20.0, 150.0)).translated(105.0, 35.0)],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(20.0, 0.0), QtCore.QPointF(20.0, 150.0)).translated(105.0, 35.0)],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)).translated(105.0, 35.0),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0)).translated(105.0, 35.0)
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)).translated(105.0, 35.0),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0)).translated(105.0, 35.0)
             ]
         ), 'x')
         self.assertEqual(expected, actual)
@@ -294,10 +271,10 @@ class TestImageTools(unittest.TestCase):
         expected = [4/15, 2/3]
         actual = TableDrawingTool._get_lines_distribution(QTableF(
             boundary=self.boundary_0x0y100w150h,
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0))],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 40.0), QPointF(100.0, 40.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 40.0), QtCore.QPointF(100.0, 40.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0))
             ]
         ), 'y')
         self.assertEqual(expected, actual)
@@ -306,10 +283,10 @@ class TestImageTools(unittest.TestCase):
         expected = [4/15, 2/3]
         actual = TableDrawingTool._get_lines_distribution(QTableF(
             boundary=self.boundary_105x35y100w150h,
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)).translated(105.0, 35.0)],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)).translated(105.0, 35.0)],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 40.0), QPointF(100.0, 40.0)).translated(105.0, 35.0),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0)).translated(105.0, 35.0)
+                QtCore.QLineF(QtCore.QPointF(0.0, 40.0), QtCore.QPointF(100.0, 40.0)).translated(105.0, 35.0),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0)).translated(105.0, 35.0)
             ]
         ), 'y')
         self.assertEqual(expected, actual)
@@ -327,10 +304,10 @@ class TestImageTools(unittest.TestCase):
         expected = [0.2]
         actual = TableDrawingTool._get_vlines_distribution(QTableF(
             boundary=self.boundary_0x0y100w150h,
-            vertical_separators=[QLineF(QPointF(20.0, 0.0), QPointF(20.0, 150.0))],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(20.0, 0.0), QtCore.QPointF(20.0, 150.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0))
             ]
         ))
         self.assertEqual(expected, actual)
@@ -349,8 +326,8 @@ class TestImageTools(unittest.TestCase):
 
     def test__get_hlines_with_distribution(self) -> None:
         expected = [
-            QLineF(QPointF(0.0, 40.0), QPointF(100.0, 40.0)),
-            QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0))
+            QtCore.QLineF(QtCore.QPointF(0.0, 40.0), QtCore.QPointF(100.0, 40.0)),
+            QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0))
         ]
         actual = TableDrawingTool._get_hlines(
             boundary=self.boundary_0x0y100w150h,
@@ -372,10 +349,10 @@ class TestImageTools(unittest.TestCase):
         expected = [4/15, 2/3]
         actual = TableDrawingTool._get_hlines_distribution(QTableF(
             boundary=self.boundary_0x0y100w150h,
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0))],
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 40.0), QPointF(100.0, 40.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 40.0), QtCore.QPointF(100.0, 40.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0))
             ]
         ))
         self.assertEqual(expected, actual)
@@ -522,8 +499,8 @@ class TestImageTools(unittest.TestCase):
 
     def test_get_table(self) -> None:
         actual = TableDrawingTool.get_table(
-            start_qpoint=QPointF(0, 0.0),
-            end_qpoint=QPointF(100.0,150.0),
+            start_qpoint=QtCore.QPointF(0, 0.0),
+            end_qpoint=QtCore.QPointF(100.0,150.0),
             col_count=2,
             row_count=3
         )
@@ -573,7 +550,7 @@ class TestImageTools(unittest.TestCase):
         )
         
         expected = selected_table
-        actual = TableDrawingTool.get_table_element_by_handle(QPointF(150.0, 50.0), selected_table)
+        actual = TableDrawingTool.get_table_element_by_handle(QtCore.QPointF(150.0, 50.0), selected_table)
         
         self.assertEqual(expected, actual)
 
@@ -588,7 +565,7 @@ class TestImageTools(unittest.TestCase):
         
         expected = selected_table
         expected.selected_element = SelectedElement(key='boundary', index_or_loaction='topRight')
-        actual = TableDrawingTool.get_table_element_by_handle(QPointF(100.0, 0.0), selected_table)
+        actual = TableDrawingTool.get_table_element_by_handle(QtCore.QPointF(100.0, 0.0), selected_table)
         
         self.assertEqual(expected, actual)
 
@@ -603,7 +580,7 @@ class TestImageTools(unittest.TestCase):
         
         expected = selected_table
         expected.selected_element = SelectedElement(key='vertical_separators', index_or_loaction=0)
-        actual = TableDrawingTool.get_table_element_by_handle(QPointF(50.0, 0.0), selected_table)
+        actual = TableDrawingTool.get_table_element_by_handle(QtCore.QPointF(50.0, 0.0), selected_table)
         
         self.assertEqual(expected, actual)
 
@@ -618,7 +595,7 @@ class TestImageTools(unittest.TestCase):
         
         expected = selected_table
         expected.selected_element = SelectedElement(key='horizontal_separators', index_or_loaction=0)
-        actual = TableDrawingTool.get_table_element_by_handle(QPointF(100.0, 50.0), selected_table)
+        actual = TableDrawingTool.get_table_element_by_handle(QtCore.QPointF(100.0, 50.0), selected_table)
         
         self.assertEqual(expected, actual)
 
@@ -628,22 +605,22 @@ class TestImageTools(unittest.TestCase):
 
     def test_get_table_by_line_empty_list(self) -> None:
         expected = None
-        actual = TableDrawingTool.get_table_by_line(QPointF(100.0, 50.0), [])
+        actual = TableDrawingTool.get_table_by_line(QtCore.QPointF(100.0, 50.0), [])
         self.assertEqual(expected, actual)
 
     def test_get_table_by_line_no_tables_in_reach(self) -> None:
         expected = None
-        actual = TableDrawingTool.get_table_by_line(QPointF(120.0, 25.0), [self.table_2c3r])
+        actual = TableDrawingTool.get_table_by_line(QtCore.QPointF(120.0, 25.0), [self.table_2c3r])
         self.assertEqual(expected, actual)
 
     def test_get_table_by_line_one_table_in_reach(self) -> None:
         expected = 0
-        actual = TableDrawingTool.get_table_by_line(QPointF(100.0, 25.0), [self.table_2c3r])
+        actual = TableDrawingTool.get_table_by_line(QtCore.QPointF(100.0, 25.0), [self.table_2c3r])
         self.assertEqual(expected, actual)
 
     def test_get_table_by_line_two_tables_in_reach(self) -> None:
         expected = 1
-        actual = TableDrawingTool.get_table_by_line(QPointF(103.0, 45.0), [self.table_2c3r, self.table_2c3r105x35y])
+        actual = TableDrawingTool.get_table_by_line(QtCore.QPointF(103.0, 45.0), [self.table_2c3r, self.table_2c3r105x35y])
         self.assertEqual(expected, actual)
 
     #
@@ -652,58 +629,58 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_table_size_handle_literal_topLeft(self) -> None:
         expected = QTableF(
-            boundary=QRectF(QPointF(0.0, 0.0), QPointF(110.0, 160.0)),
+            boundary=QtCore.QRectF(QtCore.QPointF(0.0, 0.0), QtCore.QPointF(110.0, 160.0)),
             vertical_separators=[
-                QLineF(QPointF(55.0, 0.0), QPointF(55.0, 160.0))
+                QtCore.QLineF(QtCore.QPointF(55.0, 0.0), QtCore.QPointF(55.0, 160.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 160/3), QPointF(110.0, 160/3)),
-                QLineF(QPointF(0.0, 320/3), QPointF(110.0, 320/3))
+                QtCore.QLineF(QtCore.QPointF(0.0, 160/3), QtCore.QPointF(110.0, 160/3)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 320/3), QtCore.QPointF(110.0, 320/3))
             ]
         )
-        actual = TableDrawingTool.update_table_size(QPointF(110.0, 160.0), self.table_2c3r, 'bottomRight')
+        actual = TableDrawingTool.update_table_size(QtCore.QPointF(110.0, 160.0), self.table_2c3r, 'bottomRight')
         PyQtAssert.equalTables(asdict(expected), asdict(actual))
 
     def test_update_table_size_handle_literal_topRight(self) -> None:
         expected = QTableF(
-            boundary=QRectF(QPointF(0.0, 10.0), QPointF(90.0, 150.0)),
+            boundary=QtCore.QRectF(QtCore.QPointF(0.0, 10.0), QtCore.QPointF(90.0, 150.0)),
             vertical_separators=[
-                QLineF(QPointF(45.0, 10.0), QPointF(45.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(45.0, 10.0), QtCore.QPointF(45.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 170/3), QPointF(90.0, 170/3)),
-                QLineF(QPointF(0.0, 310/3), QPointF(90.0, 310/3))
+                QtCore.QLineF(QtCore.QPointF(0.0, 170/3), QtCore.QPointF(90.0, 170/3)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 310/3), QtCore.QPointF(90.0, 310/3))
             ]
         )
-        actual = TableDrawingTool.update_table_size(QPointF(90.0, 10.0), self.table_2c3r, 'topRight')
+        actual = TableDrawingTool.update_table_size(QtCore.QPointF(90.0, 10.0), self.table_2c3r, 'topRight')
         PyQtAssert.equalTables(asdict(expected), asdict(actual))
 
     def test_update_table_size_handle_literal_bottomLeft(self) -> None:
         expected = QTableF(
-            boundary=QRectF(QPointF(10.0, 10.0), QPointF(100.0, 150.0)),
+            boundary=QtCore.QRectF(QtCore.QPointF(10.0, 10.0), QtCore.QPointF(100.0, 150.0)),
             vertical_separators=[
-                QLineF(QPointF(55.0, 10.0), QPointF(55.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(55.0, 10.0), QtCore.QPointF(55.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(10.0, 170/3), QPointF(100.0, 170/3)),
-                QLineF(QPointF(10.0, 310/3), QPointF(100.0, 310/3))
+                QtCore.QLineF(QtCore.QPointF(10.0, 170/3), QtCore.QPointF(100.0, 170/3)),
+                QtCore.QLineF(QtCore.QPointF(10.0, 310/3), QtCore.QPointF(100.0, 310/3))
             ]
         )
-        actual = TableDrawingTool.update_table_size(QPointF(10.0, 10.0), self.table_2c3r, 'topLeft')
+        actual = TableDrawingTool.update_table_size(QtCore.QPointF(10.0, 10.0), self.table_2c3r, 'topLeft')
         PyQtAssert.equalTables(asdict(expected), asdict(actual))
 
     def test_update_table_size_handle_literal_bottomRight(self) -> None:
         expected = QTableF(
-            boundary=QRectF(QPointF(10.0, 0.0), QPointF(100.0, 160.0)),
+            boundary=QtCore.QRectF(QtCore.QPointF(10.0, 0.0), QtCore.QPointF(100.0, 160.0)),
             vertical_separators=[
-                QLineF(QPointF(55.0, 0.0), QPointF(55.0, 160.0))
+                QtCore.QLineF(QtCore.QPointF(55.0, 0.0), QtCore.QPointF(55.0, 160.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(10.0, 160/3), QPointF(100.0, 160/3)),
-                QLineF(QPointF(10.0, 320/3), QPointF(100.0, 320/3))
+                QtCore.QLineF(QtCore.QPointF(10.0, 160/3), QtCore.QPointF(100.0, 160/3)),
+                QtCore.QLineF(QtCore.QPointF(10.0, 320/3), QtCore.QPointF(100.0, 320/3))
             ]
         )
-        actual = TableDrawingTool.update_table_size(QPointF(10.0, 160.0), self.table_2c3r, 'bottomLeft')
+        actual = TableDrawingTool.update_table_size(QtCore.QPointF(10.0, 160.0), self.table_2c3r, 'bottomLeft')
         PyQtAssert.equalTables(asdict(expected), asdict(actual))
 
     #
@@ -729,17 +706,17 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_table_element_boundary_handle_literal_topLeft(self) -> None:
         expected = QTableF(
-            boundary=QRectF(QPointF(10.0, 10.0), QPointF(100.0, 150.0)),
+            boundary=QtCore.QRectF(QtCore.QPointF(10.0, 10.0), QtCore.QPointF(100.0, 150.0)),
             vertical_separators=[
-                QLineF(QPointF(55.0, 10.0), QPointF(55.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(55.0, 10.0), QtCore.QPointF(55.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(10.0, 170/3), QPointF(100.0, 170/3)),
-                QLineF(QPointF(10.0, 310/3), QPointF(100.0, 310/3))
+                QtCore.QLineF(QtCore.QPointF(10.0, 170/3), QtCore.QPointF(100.0, 170/3)),
+                QtCore.QLineF(QtCore.QPointF(10.0, 310/3), QtCore.QPointF(100.0, 310/3))
             ]
         )
         actual = TableDrawingTool.update_table_element(
-            QPointF(10.0, 10.0),
+            QtCore.QPointF(10.0, 10.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -753,9 +730,9 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_table_element_vline_pos_within_the_range(self) -> None:
         expected = self.table_2c3r
-        expected.vertical_separators = [QLineF(QPointF(55.0, 0.0), QPointF(55.0, 150.0))]
+        expected.vertical_separators = [QtCore.QLineF(QtCore.QPointF(55.0, 0.0), QtCore.QPointF(55.0, 150.0))]
         actual = TableDrawingTool.update_table_element(
-            QPointF(55.0, 0.0),
+            QtCore.QPointF(55.0, 0.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -770,9 +747,9 @@ class TestImageTools(unittest.TestCase):
     def test_update_table_element_vline_pos_gt_xmax(self) -> None:
         expected = self.table_2c3r
         newx = expected.boundary.topRight().x() - MIN_COLUMN_WIDTH
-        expected.vertical_separators = [QLineF(QPointF(newx, 0.0), QPointF(newx, 150.0))]
+        expected.vertical_separators = [QtCore.QLineF(QtCore.QPointF(newx, 0.0), QtCore.QPointF(newx, 150.0))]
         actual = TableDrawingTool.update_table_element(
-            QPointF(100.0, 0.0),
+            QtCore.QPointF(100.0, 0.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -786,9 +763,9 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_table_element_vline_pos_lt_xmin(self) -> None:
         expected = self.table_2c3r
-        expected.vertical_separators = [QLineF(QPointF(MIN_COLUMN_WIDTH, 0.0), QPointF(MIN_COLUMN_WIDTH, 150.0))]
+        expected.vertical_separators = [QtCore.QLineF(QtCore.QPointF(MIN_COLUMN_WIDTH, 0.0), QtCore.QPointF(MIN_COLUMN_WIDTH, 150.0))]
         actual = TableDrawingTool.update_table_element(
-            QPointF(0.0, 0.0),
+            QtCore.QPointF(0.0, 0.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -802,9 +779,9 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_table_element_vline_pos_within_the_range_below_table(self) -> None:
         expected = self.table_2c3r
-        expected.vertical_separators = [QLineF(QPointF(55.0, 0.0), QPointF(55.0, 150.0))]
+        expected.vertical_separators = [QtCore.QLineF(QtCore.QPointF(55.0, 0.0), QtCore.QPointF(55.0, 150.0))]
         actual = TableDrawingTool.update_table_element(
-            QPointF(55.0, 160.0),
+            QtCore.QPointF(55.0, 160.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -818,9 +795,9 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_table_element_hline_pos_within_the_range(self) -> None:
         expected = self.table_2c3r
-        expected.horizontal_separators[0] = QLineF(QPointF(0.0, 55.0), QPointF(100.0, 55.0))
+        expected.horizontal_separators[0] = QtCore.QLineF(QtCore.QPointF(0.0, 55.0), QtCore.QPointF(100.0, 55.0))
         actual = TableDrawingTool.update_table_element(
-            QPointF(0.0, 55.0),
+            QtCore.QPointF(0.0, 55.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -835,9 +812,9 @@ class TestImageTools(unittest.TestCase):
     def test_update_table_element_hline_pos_gt_ymax(self) -> None:
         expected = self.table_2c3r
         newy = 100.0 - MIN_ROW_HEIGHT
-        expected.horizontal_separators[0] = QLineF(QPointF(0.0, newy), QPointF(100.0, newy))
+        expected.horizontal_separators[0] = QtCore.QLineF(QtCore.QPointF(0.0, newy), QtCore.QPointF(100.0, newy))
         actual = TableDrawingTool.update_table_element(
-            QPointF(0.0, 150.0),
+            QtCore.QPointF(0.0, 150.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -851,9 +828,9 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_table_element_hline_pos_lt_ymin(self) -> None:
         expected = self.table_2c3r
-        expected.horizontal_separators[0] = QLineF(QPointF(0.0, MIN_ROW_HEIGHT), QPointF(100.0, MIN_ROW_HEIGHT))
+        expected.horizontal_separators[0] = QtCore.QLineF(QtCore.QPointF(0.0, MIN_ROW_HEIGHT), QtCore.QPointF(100.0, MIN_ROW_HEIGHT))
         actual = TableDrawingTool.update_table_element(
-            QPointF(0.0, 0.0),
+            QtCore.QPointF(0.0, 0.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -867,9 +844,9 @@ class TestImageTools(unittest.TestCase):
     
     def test_update_table_element_hline_pos_within_the_range_outside_table(self) -> None:
         expected = self.table_2c3r
-        expected.horizontal_separators[0] = QLineF(QPointF(0.0, 55.0), QPointF(100.0, 55.0))
+        expected.horizontal_separators[0] = QtCore.QLineF(QtCore.QPointF(0.0, 55.0), QtCore.QPointF(100.0, 55.0))
         actual = TableDrawingTool.update_table_element(
-            QPointF(120.0, 55.0),
+            QtCore.QPointF(120.0, 55.0),
             TableInfo(
                 table_drawing_settings=DrawingSettings(
                     col_count=len(self.table_2c3r.vertical_separators) + 1,
@@ -889,8 +866,8 @@ class TestImageTools(unittest.TestCase):
         expected = QTableF(
             boundary=self.table_2c3r.boundary,
             vertical_separators=[
-                QLineF(QPointF(100/3, 0.0), QPointF(100/3, 150.0)),
-                QLineF(QPointF(200/3, 0.0), QPointF(200/3, 150.0))
+                QtCore.QLineF(QtCore.QPointF(100/3, 0.0), QtCore.QPointF(100/3, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(200/3, 0.0), QtCore.QPointF(200/3, 150.0))
             ],
             horizontal_separators=self.table_2c3r.horizontal_separators
         )
@@ -901,9 +878,9 @@ class TestImageTools(unittest.TestCase):
         expected = QTableF(
             boundary=self.table_2c3r.boundary,
             vertical_separators=[
-                QLineF(QPointF(25.0, 0.0), QPointF(25.0, 150.0)),
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                QLineF(QPointF(75.0, 0.0), QPointF(75.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 150.0))
             ],
             horizontal_separators=self.table_2c3r.horizontal_separators
         )
@@ -916,8 +893,8 @@ class TestImageTools(unittest.TestCase):
             QTableF(
                 boundary=self.table_2c3r.boundary,
                 vertical_separators=[
-                    QLineF(QPointF(100/3, 0.0), QPointF(100/3, 150.0)),
-                    QLineF(QPointF(200/3, 0.0), QPointF(200/3, 150.0))
+                    QtCore.QLineF(QtCore.QPointF(100/3, 0.0), QtCore.QPointF(100/3, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(200/3, 0.0), QtCore.QPointF(200/3, 150.0))
                 ],
                 horizontal_separators=self.table_2c3r.horizontal_separators
             ),
@@ -932,9 +909,9 @@ class TestImageTools(unittest.TestCase):
             QTableF(
                 boundary=self.table_2c3r.boundary,
                 vertical_separators=[
-                    QLineF(QPointF(25.0, 0.0), QPointF(25.0, 150.0)),
-                    QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                    QLineF(QPointF(75.0, 0.0), QPointF(75.0, 150.0))
+                    QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 150.0))
                 ],
                 horizontal_separators=self.table_2c3r.horizontal_separators
             ),
@@ -950,14 +927,14 @@ class TestImageTools(unittest.TestCase):
 
     def test__update_division_count_x_axis_append_add_one_column(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 150.0, 150.0),
+            boundary=QtCore.QRectF(0.0, 0.0, 150.0, 150.0),
             vertical_separators=[
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(150.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(150.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(150.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(150.0, 100.0))
             ]
         )
         actual = TableDrawingTool.update_column_count(self.table_2c3r, 3, AddMode.APPEND)
@@ -965,15 +942,15 @@ class TestImageTools(unittest.TestCase):
 
     def test__update_division_count_x_axis_append_add_two_columns(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 200.0, 150.0),
+            boundary=QtCore.QRectF(0.0, 0.0, 200.0, 150.0),
             vertical_separators=[
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0)),
-                QLineF(QPointF(150.0, 0.0), QPointF(150.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(150.0, 0.0), QtCore.QPointF(150.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(200.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(200.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(200.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(200.0, 100.0))
             ]
         )
         actual = TableDrawingTool.update_column_count(self.table_2c3r, 4, AddMode.APPEND)
@@ -983,14 +960,14 @@ class TestImageTools(unittest.TestCase):
         expected = self.table_2c3r
         actual = TableDrawingTool.update_column_count(
             QTableF(
-                boundary=QRectF(0.0, 0.0, 150.0, 150.0),
+                boundary=QtCore.QRectF(0.0, 0.0, 150.0, 150.0),
                 vertical_separators=[
-                    QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                    QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0)),
                 ],
                 horizontal_separators=[
-                    QLineF(QPointF(0.0, 50.0), QPointF(150.0, 50.0)),
-                    QLineF(QPointF(0.0, 100.0), QPointF(150.0, 100.0))
+                    QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(150.0, 50.0)),
+                    QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(150.0, 100.0))
                 ]
             ),
             2,
@@ -1002,15 +979,15 @@ class TestImageTools(unittest.TestCase):
         expected = self.table_2c3r
         actual = TableDrawingTool.update_column_count(
             QTableF(
-                boundary=QRectF(0.0, 0.0, 200.0, 150.0),
+                boundary=QtCore.QRectF(0.0, 0.0, 200.0, 150.0),
                 vertical_separators=[
-                    QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                    QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0)),
-                    QLineF(QPointF(150.0, 0.0), QPointF(150.0, 150.0))
+                    QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(150.0, 0.0), QtCore.QPointF(150.0, 150.0))
                 ],
                 horizontal_separators=[
-                    QLineF(QPointF(0.0, 50.0), QPointF(200.0, 50.0)),
-                    QLineF(QPointF(0.0, 100.0), QPointF(200.0, 100.0))
+                    QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(200.0, 50.0)),
+                    QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(200.0, 100.0))
                 ]
             ),
             2,
@@ -1028,9 +1005,9 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_2c3r.boundary,
             vertical_separators=self.table_2c3r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 37.5), QPointF(100.0, 37.5)),
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
-                QLineF(QPointF(0.0, 112.5), QPointF(100.0, 112.5))
+                QtCore.QLineF(QtCore.QPointF(0.0, 37.5), QtCore.QPointF(100.0, 37.5)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 112.5), QtCore.QPointF(100.0, 112.5))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 4, AddMode.INSERT_AT_END)
@@ -1041,10 +1018,10 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_2c3r.boundary,
             vertical_separators=self.table_2c3r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 30.0), QPointF(100.0, 30.0)),
-                QLineF(QPointF(0.0, 60.0), QPointF(100.0, 60.0)),
-                QLineF(QPointF(0.0, 90.0), QPointF(100.0, 90.0)),
-                QLineF(QPointF(0.0, 120.0), QPointF(100.0, 120.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 30.0), QtCore.QPointF(100.0, 30.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 60.0), QtCore.QPointF(100.0, 60.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 90.0), QtCore.QPointF(100.0, 90.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 120.0), QtCore.QPointF(100.0, 120.0)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 5, AddMode.INSERT_AT_END)
@@ -1055,7 +1032,7 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_2c3r.boundary,
             vertical_separators=self.table_2c3r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 2, AddMode.INSERT_AT_END)
@@ -1066,7 +1043,7 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_4c4r.boundary,
             vertical_separators=self.table_4c4r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_4c4r, 2, AddMode.INSERT_AT_END)
@@ -1079,12 +1056,12 @@ class TestImageTools(unittest.TestCase):
 
     def test__update_division_count_y_axis_append_add_one_row(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 200.0),
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 200.0))],
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 200.0),
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 200.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0)),
-                QLineF(QPointF(0.0, 150.0), QPointF(100.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 150.0), QtCore.QPointF(100.0, 150.0))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 4, AddMode.APPEND)
@@ -1092,13 +1069,13 @@ class TestImageTools(unittest.TestCase):
 
     def test__update_division_count_y_axis_append_add_two_rows(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 250.0),
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 250.0))],
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 250.0),
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 250.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0)),
-                QLineF(QPointF(0.0, 150.0), QPointF(100.0, 150.0)),
-                QLineF(QPointF(0.0, 200.0), QPointF(100.0, 200.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 150.0), QtCore.QPointF(100.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 200.0), QtCore.QPointF(100.0, 200.0))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 5, AddMode.APPEND)
@@ -1106,15 +1083,15 @@ class TestImageTools(unittest.TestCase):
 
     def test__update_division_count_y_axis_append_remove_one_row(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 112.5),
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 112.5),
             vertical_separators=[
-                QLineF(QPointF(25.0, 0.0), QPointF(25.0, 112.5)),
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 112.5)),
-                QLineF(QPointF(75.0, 0.0), QPointF(75.0, 112.5))
+                QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 112.5)),
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 112.5)),
+                QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 112.5))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 37.5), QPointF(100.0, 37.5)),
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 37.5), QtCore.QPointF(100.0, 37.5)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_4c4r, 3, AddMode.APPEND)
@@ -1122,14 +1099,14 @@ class TestImageTools(unittest.TestCase):
 
     def test__update_division_count_y_axis_append_remove_two_rows(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 75.0),
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 75.0),
             vertical_separators=[
-                QLineF(QPointF(25.0, 0.0), QPointF(25.0, 75.0)),
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 75.0)),
-                QLineF(QPointF(75.0, 0.0), QPointF(75.0, 75.0))
+                QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 75.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 37.5), QPointF(100.0, 37.5)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 37.5), QtCore.QPointF(100.0, 37.5)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_4c4r, 2, AddMode.APPEND)
@@ -1148,8 +1125,8 @@ class TestImageTools(unittest.TestCase):
         expected = QTableF(
             boundary=self.table_2c3r.boundary,
             vertical_separators=[
-                QLineF(QPointF(100/3, 0.0), QPointF(100/3, 150.0)),
-                QLineF(QPointF(200/3, 0.0), QPointF(200/3, 150.0))
+                QtCore.QLineF(QtCore.QPointF(100/3, 0.0), QtCore.QPointF(100/3, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(200/3, 0.0), QtCore.QPointF(200/3, 150.0))
             ],
             horizontal_separators=self.table_2c3r.horizontal_separators
         )
@@ -1160,9 +1137,9 @@ class TestImageTools(unittest.TestCase):
         expected = QTableF(
             boundary=self.table_2c3r.boundary,
             vertical_separators=[
-                QLineF(QPointF(25.0, 0.0), QPointF(25.0, 150.0)),
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                QLineF(QPointF(75.0, 0.0), QPointF(75.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 150.0))
             ],
             horizontal_separators=self.table_2c3r.horizontal_separators
         )
@@ -1175,8 +1152,8 @@ class TestImageTools(unittest.TestCase):
             QTableF(
                 boundary=self.table_2c3r.boundary,
                 vertical_separators=[
-                    QLineF(QPointF(100/3, 0.0), QPointF(100/3, 150.0)),
-                    QLineF(QPointF(200/3, 0.0), QPointF(200/3, 150.0))
+                    QtCore.QLineF(QtCore.QPointF(100/3, 0.0), QtCore.QPointF(100/3, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(200/3, 0.0), QtCore.QPointF(200/3, 150.0))
                 ],
                 horizontal_separators=self.table_2c3r.horizontal_separators
             ),
@@ -1191,9 +1168,9 @@ class TestImageTools(unittest.TestCase):
             QTableF(
                 boundary=self.table_2c3r.boundary,
                 vertical_separators=[
-                    QLineF(QPointF(25.0, 0.0), QPointF(25.0, 150.0)),
-                    QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                    QLineF(QPointF(75.0, 0.0), QPointF(75.0, 150.0))
+                    QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 150.0))
                 ],
                 horizontal_separators=self.table_2c3r.horizontal_separators
             ),
@@ -1209,14 +1186,14 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_column_count_append_add_one_column(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 150.0, 150.0),
+            boundary=QtCore.QRectF(0.0, 0.0, 150.0, 150.0),
             vertical_separators=[
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(150.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(150.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(150.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(150.0, 100.0))
             ]
         )
         actual = TableDrawingTool.update_column_count(self.table_2c3r, 3, AddMode.APPEND)
@@ -1224,15 +1201,15 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_column_count_append_add_two_columns(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 200.0, 150.0),
+            boundary=QtCore.QRectF(0.0, 0.0, 200.0, 150.0),
             vertical_separators=[
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0)),
-                QLineF(QPointF(150.0, 0.0), QPointF(150.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(150.0, 0.0), QtCore.QPointF(150.0, 150.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(200.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(200.0, 100.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(200.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(200.0, 100.0))
             ]
         )
         actual = TableDrawingTool.update_column_count(self.table_2c3r, 4, AddMode.APPEND)
@@ -1242,14 +1219,14 @@ class TestImageTools(unittest.TestCase):
         expected = self.table_2c3r
         actual = TableDrawingTool.update_column_count(
             QTableF(
-                boundary=QRectF(0.0, 0.0, 150.0, 150.0),
+                boundary=QtCore.QRectF(0.0, 0.0, 150.0, 150.0),
                 vertical_separators=[
-                    QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                    QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0)),
                 ],
                 horizontal_separators=[
-                    QLineF(QPointF(0.0, 50.0), QPointF(150.0, 50.0)),
-                    QLineF(QPointF(0.0, 100.0), QPointF(150.0, 100.0))
+                    QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(150.0, 50.0)),
+                    QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(150.0, 100.0))
                 ]
             ),
             2,
@@ -1261,15 +1238,15 @@ class TestImageTools(unittest.TestCase):
         expected = self.table_2c3r
         actual = TableDrawingTool.update_column_count(
             QTableF(
-                boundary=QRectF(0.0, 0.0, 200.0, 150.0),
+                boundary=QtCore.QRectF(0.0, 0.0, 200.0, 150.0),
                 vertical_separators=[
-                    QLineF(QPointF(50.0, 0.0), QPointF(50.0, 150.0)),
-                    QLineF(QPointF(100.0, 0.0), QPointF(100.0, 150.0)),
-                    QLineF(QPointF(150.0, 0.0), QPointF(150.0, 150.0))
+                    QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(100.0, 0.0), QtCore.QPointF(100.0, 150.0)),
+                    QtCore.QLineF(QtCore.QPointF(150.0, 0.0), QtCore.QPointF(150.0, 150.0))
                 ],
                 horizontal_separators=[
-                    QLineF(QPointF(0.0, 50.0), QPointF(200.0, 50.0)),
-                    QLineF(QPointF(0.0, 100.0), QPointF(200.0, 100.0))
+                    QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(200.0, 50.0)),
+                    QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(200.0, 100.0))
                 ]
             ),
             2,
@@ -1291,9 +1268,9 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_2c3r.boundary,
             vertical_separators=self.table_2c3r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 37.5), QPointF(100.0, 37.5)),
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
-                QLineF(QPointF(0.0, 112.5), QPointF(100.0, 112.5))
+                QtCore.QLineF(QtCore.QPointF(0.0, 37.5), QtCore.QPointF(100.0, 37.5)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 112.5), QtCore.QPointF(100.0, 112.5))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 4, AddMode.INSERT_AT_END)
@@ -1304,10 +1281,10 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_2c3r.boundary,
             vertical_separators=self.table_2c3r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 30.0), QPointF(100.0, 30.0)),
-                QLineF(QPointF(0.0, 60.0), QPointF(100.0, 60.0)),
-                QLineF(QPointF(0.0, 90.0), QPointF(100.0, 90.0)),
-                QLineF(QPointF(0.0, 120.0), QPointF(100.0, 120.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 30.0), QtCore.QPointF(100.0, 30.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 60.0), QtCore.QPointF(100.0, 60.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 90.0), QtCore.QPointF(100.0, 90.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 120.0), QtCore.QPointF(100.0, 120.0)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 5, AddMode.INSERT_AT_END)
@@ -1318,7 +1295,7 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_2c3r.boundary,
             vertical_separators=self.table_2c3r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 2, AddMode.INSERT_AT_END)
@@ -1329,7 +1306,7 @@ class TestImageTools(unittest.TestCase):
             boundary=self.table_4c4r.boundary,
             vertical_separators=self.table_4c4r.vertical_separators,
             horizontal_separators=[
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_4c4r, 2, AddMode.INSERT_AT_END)
@@ -1342,12 +1319,12 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_row_count_append_add_one_row(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 200.0),
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 200.0))],
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 200.0),
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 200.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0)),
-                QLineF(QPointF(0.0, 150.0), QPointF(100.0, 150.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 150.0), QtCore.QPointF(100.0, 150.0))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 4, AddMode.APPEND)
@@ -1355,13 +1332,13 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_row_count_append_add_two_rows(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 250.0),
-            vertical_separators=[QLineF(QPointF(50.0, 0.0), QPointF(50.0, 250.0))],
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 250.0),
+            vertical_separators=[QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 250.0))],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 50.0), QPointF(100.0, 50.0)),
-                QLineF(QPointF(0.0, 100.0), QPointF(100.0, 100.0)),
-                QLineF(QPointF(0.0, 150.0), QPointF(100.0, 150.0)),
-                QLineF(QPointF(0.0, 200.0), QPointF(100.0, 200.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 50.0), QtCore.QPointF(100.0, 50.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 100.0), QtCore.QPointF(100.0, 100.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 150.0), QtCore.QPointF(100.0, 150.0)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 200.0), QtCore.QPointF(100.0, 200.0))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_2c3r, 5, AddMode.APPEND)
@@ -1369,15 +1346,15 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_row_count_append_remove_one_row(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 112.5),
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 112.5),
             vertical_separators=[
-                QLineF(QPointF(25.0, 0.0), QPointF(25.0, 112.5)),
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 112.5)),
-                QLineF(QPointF(75.0, 0.0), QPointF(75.0, 112.5))
+                QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 112.5)),
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 112.5)),
+                QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 112.5))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 37.5), QPointF(100.0, 37.5)),
-                QLineF(QPointF(0.0, 75.0), QPointF(100.0, 75.0))
+                QtCore.QLineF(QtCore.QPointF(0.0, 37.5), QtCore.QPointF(100.0, 37.5)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 75.0), QtCore.QPointF(100.0, 75.0))
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_4c4r, 3, AddMode.APPEND)
@@ -1385,14 +1362,14 @@ class TestImageTools(unittest.TestCase):
 
     def test_update_row_count_append_remove_two_rows(self) -> None:
         expected = QTableF(
-            boundary=QRectF(0.0, 0.0, 100.0, 75.0),
+            boundary=QtCore.QRectF(0.0, 0.0, 100.0, 75.0),
             vertical_separators=[
-                QLineF(QPointF(25.0, 0.0), QPointF(25.0, 75.0)),
-                QLineF(QPointF(50.0, 0.0), QPointF(50.0, 75.0)),
-                QLineF(QPointF(75.0, 0.0), QPointF(75.0, 75.0))
+                QtCore.QLineF(QtCore.QPointF(25.0, 0.0), QtCore.QPointF(25.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(50.0, 0.0), QtCore.QPointF(50.0, 75.0)),
+                QtCore.QLineF(QtCore.QPointF(75.0, 0.0), QtCore.QPointF(75.0, 75.0))
             ],
             horizontal_separators=[
-                QLineF(QPointF(0.0, 37.5), QPointF(100.0, 37.5)),
+                QtCore.QLineF(QtCore.QPointF(0.0, 37.5), QtCore.QPointF(100.0, 37.5)),
             ]
         )
         actual = TableDrawingTool.update_row_count(self.table_4c4r, 2, AddMode.APPEND)
