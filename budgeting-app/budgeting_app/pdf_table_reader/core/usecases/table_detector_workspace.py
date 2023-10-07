@@ -7,7 +7,7 @@ from uuid import uuid4
 from budgeting_app.utils.logging import CustomLoggerAdapter
 from budgeting_app.utils.types import TypedObservableDict
 
-from pdfplumber import table, page, _typing
+from pdfplumber import table, page, _typing, display
 
 from budgeting_app.pdf_table_reader.core.entities.models import ExplicitLineData, PDFFileWrapper, PDFPageWrapper, ImageWrapper, BASE_IMAGE_RESOLUTION
 
@@ -328,30 +328,16 @@ class TableDetectorWorkspace:
         *,
         antialias: bool = False,
         _format: str = 'PNG'
-    ) -> list[bytes] | bytes:
-        """When `merge` set to False (default) it works like `get_page_image_bytes` but form many pages and
-        returns the list of byte arrays. When `merge` is set to True it will attempt to stack images
-        horizontally or vertically (depends on `direction`). Each image is scaled up to fit the width or height
-        of the final image. The final image is then either long strip of images extracted from requested pages
-        or a wide panorama of those pages.
-
+    ) -> list[bytes]:
+        """
         Args:
             `page_indices (list[int])`: Indices of pages to extract the images from\n
-            `resolution (int)`: resolution of the image extracted from the page.
-            merge (bool, optional): If set to true images will be stacked into one lond/wide image. Defaults to False.\n
-            `direction (Literal['vertical', 'horizontal'], optional)`: When merge is set to true
-            the `direction` will determine whether the images will be placed beneath one another or nex to eachother.
-            Defaults to 'vertical'.\n
-            `reverse_order (bool, optional)`: By default the images are being stacked from top to bottom. When this is
-            set to True that is being flipped. Defaults to False.\n
+            `resolution (int)`: resolution of the image extracted from the page.\n
             `antialias (bool, optional)`: Defaults to False.\n
             `_format (str, optional)`: Image formatting. Defaults to 'PNG'.\n
-            `background_color (tuple[int, int, int], optional)`: Stacking images is done by pasting them onto a black
-            canvas. The color of that canvas can be altered here. Defaults to (0, 0, 0).\n
 
         Returns:
-            `list[bytes] | bytes`: Either list of byte arrays - one for each image - or a single byte array - when
-            images are merged.
+            `list[bytes]`: List of byte arrays - one for each image.
         """
         if isinstance(page_indices, list):
             if not all(map(lambda i: isinstance(i, int), page_indices)):
@@ -363,9 +349,11 @@ class TableDetectorWorkspace:
         img_bytes = []
         for i in page_indices:
             image_bytes_io = io.BytesIO()
-            # img = self.pdf_file.pages[i].page.to_image(resolution, antialias=antialias).original
             img = self.pdf_file.pages[i].page.to_image(resolution, antialias=antialias).debug_tablefinder(self.pdf_file.pages[i].table_settings)
-            img.save(image_bytes_io, format=_format)
+            
+            # quantize set to False cause otherwise it changes mode from RGB to P
+            img.save(image_bytes_io, format=_format, quantize=False)
+            
             img_bytes.append(image_bytes_io.getvalue())
             
         return img_bytes
@@ -382,8 +370,8 @@ class TableDetectorWorkspace:
         
         self.pdf_file.image = ImageWrapper(
             image_bytes=self._get_pages_images_bytes(
-                page_indices=[*range(len(self.pdf_file.pages))] if page_indices == 'all' else page_indices,
-                resolution=resolution,
+                [*range(len(self.pdf_file.pages))] if page_indices == 'all' else page_indices,
+                resolution,
                 antialias=antialias,
                 _format=_format
             ),
@@ -567,8 +555,6 @@ class TableDetectorWorkspace:
     ###########################
     
     def set_table_settings_val(self, page_index: int | list[int] | Literal['all'], key: str, val: Any) -> 'TableDetectorWorkspace':
-
-        print(f'TableDetectorWorkspace.set_table_settings_val: page_index={page_index}, key={key}, val={val}')
 
         if isinstance(page_index, int):
             _p_ind = [page_index]
