@@ -2,7 +2,7 @@ import logging
 import sys
 from typing import Any, Generator
 
-from behave import runner, fixture, use_fixture, model
+from behave import runner, fixture, use_fixture, model, model_core
 from PyQt6 import QtWidgets, QtCore
 
 from budgeting_app.gui.services.add_profile.add_profile import AddProfileForm
@@ -24,7 +24,7 @@ def app_fixture(context: _context) -> Generator[QtWidgets.QApplication, Any, Non
 
 def before_all(context: _context) -> None:
     
-    set_up_logging()
+    set_up_logging(global_level='INFO')
     context.logger = CustomLoggerAdapter.getLogger('integration_tests')
     context.logger.info('Setting up environment.')
     
@@ -42,3 +42,11 @@ def before_scenario(context: _context, scenario: model.Scenario) -> None:
         }
     )
     context.mouse_event_data = {}
+    
+def after_step(context: _context, step: model.Step) -> None:
+    if step.status in [model_core.Status.untested, model_core.Status.skipped]:
+        context.logger.warning(f'### UNTESTED/SKIPPED')
+    elif step.status == model_core.Status.passed:
+        context.logger.info(f'### PASSED in {step.duration}s')
+    elif step.status in [model_core.Status.failed, model_core.Status.undefined]:
+        context.logger.error(f'### FAILED/UNDEFINED')
